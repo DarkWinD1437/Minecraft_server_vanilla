@@ -1,0 +1,105 @@
+/* ═══════════════════════════════════════════
+   MONITORING STYLES
+   ═══════════════════════════════════════════ */
+
+#monitoring-pane {
+    layout: vertical;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+.monitor-section {
+    margin-bottom: 2;
+}
+
+.monitor-section-title {
+    text-style: bold;
+    color: $accent;
+    background: $panel-darken-1;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.sparkline-grid {
+    layout: horizontal;
+    height: auto;
+    margin-bottom: 1;
+}
+
+.sparkline-card {
+    width: 1fr;
+    height: 10;
+    border: solid $primary-darken-2;
+    background: $panel;
+    padding: 0 1;
+    margin-right: 1;
+}
+
+.sparkline-card:last-of-type {
+    margin-right: 0;
+}
+
+.sparkline-title {
+    text-style: bold;
+    color: $text-muted;
+    margin-bottom: 0;
+}
+
+.sparkline-value {
+    color: $accent;
+    text-style: bold;
+    margin-top: 0;
+}
+
+.sparkline-minmax {
+    color: $text-muted;
+    text-style: italic;
+}
+
+Sparkline {
+    height: 5;
+    margin: 0;
+}
+
+.meter-row {
+    layout: horizontal;
+    height: 3;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.meter-label {
+    width: 12;
+    color: $text-muted;
+}
+
+.meter-bar {
+    width: 1fr;
+    height: 1;
+}
+
+.meter-value {
+    width: 12;
+    text-align: right;
+    color: $accent;
+}
+
+/* CPU color */
+.sparkline-cpu Sparkline {
+    color: $success;
+}
+
+/* RAM color */
+.sparkline-ram Sparkline {
+    color: $warning;
+}
+
+/* Network color */
+.sparkline-net Sparkline {
+    color: $accent;
+}
+
+/* Disk color */
+.sparkline-disk Sparkline {
+    color: $error;
+}

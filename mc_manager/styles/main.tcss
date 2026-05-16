@@ -1,0 +1,212 @@
+/* ═══════════════════════════════════════════
+   MAIN LAYOUT
+   ═══════════════════════════════════════════ */
+
+Screen {
+    layout: vertical;
+}
+
+#main-layout {
+    layout: horizontal;
+    height: 1fr;
+}
+
+/* ─── Sidebar ─── */
+#sidebar {
+    width: 24;
+    background: $panel;
+    border-right: solid $primary-darken-2;
+    padding: 0 0;
+}
+
+#sidebar-title {
+    width: 100%;
+    background: $primary-darken-2;
+    color: $text;
+    text-align: center;
+    padding: 1 0;
+    text-style: bold;
+}
+
+#nav-list {
+    width: 100%;
+    height: 1fr;
+    scrollbar-size: 0 0;
+}
+
+#nav-list > ListItem {
+    padding: 0 1;
+    height: 2;
+}
+
+#nav-list > ListItem:hover {
+    background: $primary-darken-1;
+}
+
+#nav-list > ListItem.--highlight {
+    background: $accent;
+    color: $text;
+}
+
+.nav-separator {
+    height: 1;
+    background: $panel-darken-1;
+    color: $text-muted;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ─── Content area ─── */
+#content-area {
+    width: 1fr;
+    height: 1fr;
+    padding: 0;
+}
+
+ContentSwitcher {
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── Pane base ─── */
+.feature-pane {
+    width: 100%;
+    height: 100%;
+    padding: 1 2;
+}
+
+.pane-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+/* ─── Status bar at footer ─── */
+#status-bar {
+    height: 1;
+    background: $primary-darken-2;
+    color: $text-muted;
+    padding: 0 1;
+    layout: horizontal;
+}
+
+.status-item {
+    margin-right: 3;
+}
+
+/* ─── Generic cards ─── */
+.card {
+    border: solid $primary-darken-2;
+    background: $panel;
+    padding: 1;
+    margin: 0 0 1 0;
+}
+
+.card-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+/* ─── Buttons ─── */
+.btn-danger {
+    background: $error;
+    color: $text;
+}
+
+.btn-success {
+    background: $success;
+    color: $text;
+}
+
+.btn-warning {
+    background: $warning;
+    color: $text;
+}
+
+.btn-row {
+    layout: horizontal;
+    height: auto;
+    margin-top: 1;
+}
+
+.btn-row Button {
+    margin-right: 1;
+}
+
+/* ─── Status labels ─── */
+.status-running {
+    color: $success;
+    text-style: bold;
+}
+
+.status-stopped {
+    color: $error;
+    text-style: bold;
+}
+
+.status-unknown {
+    color: $warning;
+    text-style: bold;
+}
+
+/* ─── DataTable ─── */
+DataTable {
+    height: 1fr;
+}
+
+/* ─── Help screen ─── */
+#help-container {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: solid $accent;
+    padding: 2;
+}
+
+#help-content {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+/* ─── Startup screen ─── */
+#startup-container {
+    width: 60;
+    height: auto;
+    background: $surface;
+    border: solid $accent;
+    padding: 2;
+    align: center middle;
+}
+
+#startup-status {
+    text-align: center;
+    margin-bottom: 1;
+}
+
+/* ─── Modals ─── */
+.modal-container {
+    width: 60;
+    height: auto;
+    max-height: 90%;
+    background: $surface;
+    border: solid $primary;
+    padding: 2;
+}
+
+.modal-title {
+    text-style: bold;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+.modal-buttons {
+    layout: horizontal;
+    height: auto;
+    margin-top: 1;
+    align: center middle;
+}
+
+.modal-buttons Button {
+    margin: 0 1;
+}

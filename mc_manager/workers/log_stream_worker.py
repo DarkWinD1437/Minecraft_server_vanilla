@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+import asyncio
+import re
+from typing import TYPE_CHECKING
+
+from mc_manager.core.events import LogLine, PlayitLinkFound, TunnelLinkUpdated
+
+if TYPE_CHECKING:
+    from textual.app import App
+
+
+_LEVEL_PATTERN = re.compile(r"\[([\d:]+)\s+(INFO|WARN|WARNING|ERROR|FATAL|DEBUG)\]", re.IGNORECASE)
+_PLAYIT_URL = re.compile(r"https://(?:www\.)?playit\.gg\S+", re.IGNORECASE)
+_PLAYER_JOIN = re.compile(r"(\w+) joined the game")
+_PLAYER_LEAVE = re.compile(r"(\w+) left the game")
+
+
+def _extract_level(line: str) -> str:
+    m = _LEVEL_PATTERN.search(line)
+    if m:
+        lvl = m.group(2).upper()
+        return "WARNING" if lvl == "WARNING" else lvl
+    if "ERROR" in line.upper():
+        return "ERROR"
+    if "WARN" in line.upper():
+        return "WARN"
+    return "INFO"
+
+
+async def run_log_worker(app: "App", container: str) -> None:
+    """Stream docker logs -f for a container, posting LogLine messages to app."""
+    is_tunnel = "tunel" in container or "tunnel" in container or "playit" in container
+    _found_links: set[str] = set()
+
+    while True:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "logs", "-f", "--tail", "50", container,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+
+            while True:
+                try:
+                    line_bytes = await asyncio.wait_for(proc.stdout.readline(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    if proc.returncode is not None:
+                        break
+                    continue
+
+                if not line_bytes:
+                    break
+
+                line = line_bytes.decode("utf-8", errors="replace").rstrip()
+                if not line:
+                    continue
+
+                level = _extract_level(line)
+                app.post_message(LogLine(source=container, text=line, level=level))
+
+                # Extract Playit.gg links from tunnel container
+                if is_tunnel:
+                    url_match = _PLAYIT_URL.search(line)
+                    if url_match:
+                        url = url_match.group(0)
+                        if url not in _found_links:
+                            _found_links.add(url)
+                            app.post_message(PlayitLinkFound(url=url))
+                            app.post_message(TunnelLinkUpdated(url=url, container_running=True))
+
+        except FileNotFoundError:
+            # Docker not found; wait and retry
+            await asyncio.sleep(10)
+            continue
+        except Exception:
+            pass
+
+        # Container stopped or error — wait before retrying
+        await asyncio.sleep(3)

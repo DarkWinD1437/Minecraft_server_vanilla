@@ -1,0 +1,26 @@
+services:
+  minecraft-server:
+    image: itzg/minecraft-server
+    container_name: mc_servidor
+    restart: always
+    ports:
+      - "25565:25565"
+      - "25575:25575"
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: 1.20.4
+      MEMORY: 5G
+      JVM_XX_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:+ParallelRefProcEnabled"
+      ENABLE_RCON: "true"
+      RCON_PORT: 25575
+      RCON_PASSWORD: mcpassword
+    volumes:
+      - ./datos_mc:/data
+
+  playit-agent:
+    image: playitgg/playit-agent
+    container_name: mc_tunel_red
+    restart: always
+    volumes:
+      - ./playit:/etc/playit
