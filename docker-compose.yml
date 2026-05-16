@@ -19,8 +19,9 @@ services:
       - ./datos_mc:/data
 
   playit-agent:
-    image: playitgg/playit-agent
+    image: ghcr.io/playit-cloud/playit-agent:0.17
     container_name: mc_tunel_red
     restart: always
-    volumes:
-      - ./playit:/etc/playit
+    network_mode: host
+    environment:
+      SECRET_KEY: ${PLAYIT_SECRET_KEY}
