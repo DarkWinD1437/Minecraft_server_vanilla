@@ -99,16 +99,33 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 5. Levantar el servidor de Minecraft
+### 5. Configurar variables de entorno
 
 ```bash
-# Esto descarga la imagen y crea el contenedor (primera vez tarda unos minutos)
+cp .env.example .env
+nano .env   # o el editor de tu preferencia
+```
+
+Pegar el `SECRET_KEY` de Playit.gg en el archivo `.env`:
+
+```
+PLAYIT_SECRET_KEY=tu_clave_aqui
+```
+
+> **¿Cómo obtener el SECRET_KEY?** Crear cuenta en [playit.gg](https://playit.gg) → **Agents** → **Add Agent** → copiar la clave del comando `docker run` que muestra la página. Ver sección [Configurar el túnel Playit.gg](#configurar-el-túnel-playitgg-opcional) para más detalles.
+>
+> Si no vas a usar el túnel, igual crear el `.env` con cualquier valor para evitar errores al levantar los servicios.
+
+### 6. Levantar el servidor de Minecraft
+
+```bash
+# Esto descarga las imágenes y crea los contenedores (primera vez tarda unos minutos)
 docker compose up -d
 ```
 
 > La imagen `itzg/minecraft-server` descargará automáticamente Minecraft **Paper 1.20.4** y aceptará el EULA. Los datos del servidor se guardan en la carpeta `datos_mc/`.
 
-### 6. Ejecutar el panel
+### 7. Ejecutar el panel
 
 ```bash
 # Con el entorno virtual activo
@@ -168,15 +185,32 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 5. Levantar el servidor de Minecraft
+### 5. Configurar variables de entorno
+
+```powershell
+copy .env.example .env
+notepad .env
+```
+
+Pegar el `SECRET_KEY` de Playit.gg en el archivo `.env`:
+
+```
+PLAYIT_SECRET_KEY=tu_clave_aqui
+```
+
+> **¿Cómo obtener el SECRET_KEY?** Crear cuenta en [playit.gg](https://playit.gg) → **Agents** → **Add Agent** → copiar la clave del comando `docker run` que muestra la página. Ver sección [Configurar el túnel Playit.gg](#configurar-el-túnel-playitgg-opcional) para más detalles.
+>
+> Si no vas a usar el túnel, igual crear el `.env` con cualquier valor para evitar errores al levantar los servicios.
+
+### 6. Levantar el servidor de Minecraft
 
 ```powershell
 docker compose up -d
 ```
 
-> La primera vez descarga la imagen (aprox. 300-500 MB). Los datos quedan en `datos_mc\`.
+> La primera vez descarga las imágenes (aprox. 300-500 MB). Los datos quedan en `datos_mc\`.
 
-### 6. Ejecutar el panel
+### 7. Ejecutar el panel
 
 ```powershell
 # Con el entorno virtual activo
@@ -207,12 +241,30 @@ rcon_password: str = "mcpassword"   # Debe coincidir con docker-compose.yml
 
 ### Configurar el túnel Playit.gg (opcional)
 
-El servicio `playit-agent` en `docker-compose.yml` permite que jugadores externos se conecten sin necesidad de abrir puertos en el router.
+El servicio `playit-agent` en `docker-compose.yml` permite que jugadores externos se conecten sin necesidad de abrir puertos en el router. Requiere una cuenta gratuita en [playit.gg](https://playit.gg).
 
-1. Levantar el servidor con `docker compose up -d`
+#### Obtener el SECRET_KEY
+
+1. Crear cuenta o iniciar sesión en [playit.gg](https://playit.gg)
+2. Ir a **Agents** → **Add Agent**
+3. La página mostrará un comando `docker run` similar a este:
+   ```
+   docker run --rm -it --net=host -e SECRET_KEY=xxxxxxxxxxxxxxxx ghcr.io/playit-cloud/playit-agent:0.17
+   ```
+4. Copiar únicamente el valor después de `SECRET_KEY=`
+5. Pegarlo en el archivo `.env` del proyecto:
+   ```
+   PLAYIT_SECRET_KEY=xxxxxxxxxxxxxxxx
+   ```
+
+#### Activar el túnel
+
+1. Levantar los servicios con `docker compose up -d` (el agente inicia automáticamente)
 2. Abrir el módulo **Túnel Playit.gg** en el panel
-3. El enlace de conexión aparecerá automáticamente en el log cuando el agente se registre
+3. El enlace de conexión aparecerá en los logs cuando el agente establezca la conexión (puede tardar ~30 segundos la primera vez)
 4. Compartir ese enlace con los jugadores (formato: `xxx.xx.playit.gg:porta`)
+
+> Para cambiar el SECRET_KEY en el futuro, editar el archivo `.env` y reiniciar el agente con `docker compose restart playit-agent`.
 
 ---
 
@@ -222,6 +274,8 @@ El servicio `playit-agent` en `docker-compose.yml` permite que jugadores externo
 Minecraft_server_vanilla/
 ├── app.py                     # Punto de entrada
 ├── docker-compose.yml         # Configuración Docker (servidor + túnel)
+├── .env.example               # Plantilla de variables de entorno (copiar a .env)
+├── .env                       # Variables de entorno locales — NO subir a git
 ├── requirements.txt           # Dependencias Python
 ├── backups/                   # Backups generados por el panel
 ├── logs/                      # Logs exportados
