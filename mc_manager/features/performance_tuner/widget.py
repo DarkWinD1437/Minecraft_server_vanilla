@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 from textual.app import ComposeResult
@@ -9,6 +10,12 @@ from textual.widgets import Label, Button, Input, Select, Static
 from textual.containers import Horizontal, Vertical
 
 from mc_manager.core.config import app_config
+
+
+def _to_safe_id(text: str) -> str:
+    """Strip accents so the result is valid as a Textual widget ID."""
+    normalized = unicodedata.normalize("NFD", text)
+    return "".join(c for c in normalized if unicodedata.category(c) != "Mn")
 
 
 _PRESETS = {
@@ -132,7 +139,7 @@ class PerformanceTunerPane(Widget):
             yield Label("Presets de configuración:", classes="perf-title")
             with Horizontal(classes="perf-preset-row"):
                 for name in _PRESETS:
-                    yield Button(name, id=f"preset-{name.split()[0].lower()}", variant="default")
+                    yield Button(name, id=f"preset-{_to_safe_id(name.split()[0].lower())}", variant="default")
 
         with Vertical(classes="perf-card"):
             yield Label("Configuración Manual:", classes="perf-title")
@@ -192,7 +199,7 @@ class PerformanceTunerPane(Widget):
             # Find matching preset
             prefix = bid[7:]  # e.g. "balanceado"
             for name, values in _PRESETS.items():
-                if name.lower().startswith(prefix):
+                if _to_safe_id(name.lower()).startswith(prefix):
                     try:
                         self.query_one("#perf-memory", Input).value = values["MEMORY"]
                         self.query_one("#perf-jvm-flags", Input).value = values["JVM_XX_OPTS"]
