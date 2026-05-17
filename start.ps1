@@ -231,3 +231,9 @@ Write-Host "  Lanzando MC Manager..." -ForegroundColor White
 Write-Host ""
 
 & python app.py
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    fail "La aplicacion termino con error (codigo $LASTEXITCODE)"
+    Read-Host "  Presiona Enter para salir"
+}

@@ -155,6 +155,12 @@ cd Minecraft_server_vanilla
 
 ### 4. Ejecutar el panel
 
+**Opción A — Doble clic (recomendado):**
+
+Haz doble clic en `start.bat`. No requiere configurar PowerShell ni permisos adicionales.
+
+**Opción B — Desde PowerShell:**
+
 ```powershell
 .\start.ps1
 ```
@@ -232,6 +238,7 @@ Minecraft_server_vanilla/
 ├── app.py                     # Punto de entrada
 ├── start.sh                   # Launcher Linux (bash) — auto-instala dependencias
 ├── start.ps1                  # Launcher Windows (PowerShell) — auto-instala dependencias
+├── start.bat                  # Launcher Windows (doble clic) — invoca start.ps1 sin configurar permisos
 ├── docker-compose.yml         # Configuración Docker (servidor + túnel)
 ├── .env.example               # Plantilla de variables de entorno
 ├── .env                       # Variables locales — NO subir a git
