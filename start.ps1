@@ -1,4 +1,4 @@
-# MC Server Manager — Launcher para Windows
+﻿# MC Server Manager — Launcher para Windows
 # Uso: .\start.ps1
 # Si PowerShell bloquea la ejecucion, ejecuta primero:
 #   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -62,6 +62,19 @@ if ($GitOk -and $IsRepo) {
             $null = & git pull --quiet 2>&1
             if ($LASTEXITCODE -eq 0) {
                 ok "Proyecto actualizado"
+                # Si el launcher mismo cambió → reiniciar para usar la versión nueva
+                $ChangedFiles = (& git diff "HEAD@{1}" HEAD --name-only 2>&1)
+                if ($ChangedFiles -contains "start.ps1") {
+                    info "start.ps1 fue actualizado — aplicando nueva version..."
+                    Start-Sleep -Seconds 1
+                    & powershell -NoLogo -ExecutionPolicy RemoteSigned -File $MyInvocation.MyCommand.Definition
+                    exit 0
+                }
+                # Si docker-compose.yml cambió → avisar para reiniciar el contenedor
+                if ($ChangedFiles -contains "docker-compose.yml") {
+                    warn "docker-compose.yml cambio — reinicia el servidor desde el manager para aplicar la nueva config"
+                    info "Los datos del mundo NO se veran afectados (datos_mc/ esta protegido)"
+                }
             } else {
                 warn "No se pudo actualizar — continuando con la version local"
             }
@@ -73,6 +86,7 @@ if ($GitOk -and $IsRepo) {
     warn "git no disponible o no es un repositorio — se omite el auto-update"
 }
 
+Start-Sleep -Seconds 1
 Write-Host ""
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -182,6 +196,7 @@ if (Test-Path "datos_mc" -PathType Container) {
     warn "datos_mc\ no existe — se creara cuando levantes el servidor por primera vez"
 }
 
+Start-Sleep -Seconds 1
 Write-Host ""
 
 # ── Abortar si hay errores criticos ──────────────────────────────────────────
@@ -226,9 +241,11 @@ if (-not (Test-Path $VenvActivate)) {
     }
 }
 
+Start-Sleep -Seconds 1
 Write-Host ""
 Write-Host "  Lanzando MC Manager..." -ForegroundColor White
 Write-Host ""
+Start-Sleep -Seconds 2
 
 & python app.py
 

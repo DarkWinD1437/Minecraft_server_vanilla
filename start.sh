@@ -41,7 +41,23 @@ if command -v git &>/dev/null && git rev-parse --is-inside-work-tree &>/dev/null
             git log HEAD..@{u} --oneline 2>/dev/null | while IFS= read -r line; do
                 echo -e "      ${CYAN}•${NC} $line"
             done
-            git pull --quiet 2>/dev/null && ok "Proyecto actualizado" || warn "No se pudo actualizar — continuando con la versión local"
+            if git pull --quiet 2>/dev/null; then
+                ok "Proyecto actualizado"
+                # Si el launcher mismo cambió → reiniciar para usar la versión nueva
+                LAUNCHER_CHANGED=$(git diff "HEAD@{1}" HEAD --name-only 2>/dev/null | grep -c "^start.sh$" || echo 0)
+                if [ "${LAUNCHER_CHANGED}" -gt 0 ]; then
+                    info "start.sh fue actualizado — aplicando nueva versión..."
+                    exec bash "$0" "$@"
+                fi
+                # Si docker-compose.yml cambió → avisar para reiniciar el contenedor
+                COMPOSE_CHANGED=$(git diff "HEAD@{1}" HEAD --name-only 2>/dev/null | grep -c "^docker-compose.yml$" || echo 0)
+                if [ "${COMPOSE_CHANGED}" -gt 0 ]; then
+                    warn "docker-compose.yml cambió — reinicia el servidor desde el manager para aplicar la nueva config"
+                    info "Los datos del mundo NO se verán afectados (datos_mc/ está protegido)"
+                fi
+            else
+                warn "No se pudo actualizar — continuando con la versión local"
+            fi
         else
             ok "Proyecto al día"
         fi
@@ -50,6 +66,7 @@ else
     warn "git no disponible o no es un repositorio — se omite el auto-update"
 fi
 
+sleep 1
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -142,12 +159,14 @@ else
     warn "datos_mc/ no existe — se creará la primera vez que levantes el servidor"
 fi
 
+sleep 1
 echo ""
 
 # ── Abortar si hay errores críticos ──────────────────────────────────────────
 if [ "$ERRORES" -gt 0 ]; then
     echo -e "${RED}${BOLD}  $ERRORES problema(s) crítico(s). Corrígelos antes de continuar.${NC}"
     echo ""
+    read -r -p "  Presiona Enter para salir..." _
     exit 1
 fi
 
@@ -176,8 +195,10 @@ else
     fi
 fi
 
+sleep 1
 echo ""
 echo -e "${BOLD}  Lanzando MC Manager...${NC}"
 echo ""
+sleep 2
 
 exec python3 app.py
