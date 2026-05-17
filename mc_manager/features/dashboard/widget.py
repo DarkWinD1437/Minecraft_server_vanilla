@@ -149,16 +149,14 @@ class DashboardPane(Widget):
         self._start_ts: datetime | None = None
 
     async def _refresh_state(self) -> None:
-        state = docker.get_container_state(app_config.minecraft_container)
+        state = await asyncio.to_thread(docker.get_container_state, app_config.minecraft_container)
         self._update_status_display(state)
 
-        # Try to get uptime via docker inspect
         if state == ContainerState.RUNNING:
-            info, _ = docker.get_container_info(app_config.minecraft_container)
+            info, _ = await asyncio.to_thread(docker.get_container_info, app_config.minecraft_container)
             started = info.get("State", {}).get("StartedAt", "")
             if started:
                 try:
-                    # Parse ISO format from docker
                     from datetime import timezone
                     dt_str = started[:26].replace("Z", "+00:00")
                     self._start_ts = datetime.fromisoformat(dt_str.replace("+00:00", "")).replace(tzinfo=timezone.utc)
@@ -253,7 +251,7 @@ class DashboardPane(Widget):
             self.run_worker(self._reload_tunnel_link(), exclusive=False)
 
     async def _do_start(self) -> None:
-        out, err = docker.start()
+        out, err = await asyncio.to_thread(docker.start)
         if err and not out:
             self.app.notify(f"Error: {err}", severity="error")
         else:
@@ -261,7 +259,7 @@ class DashboardPane(Widget):
         await self._refresh_state()
 
     async def _do_stop(self) -> None:
-        out, err = docker.stop()
+        out, err = await asyncio.to_thread(docker.stop)
         if err and not out:
             self.app.notify(f"Error: {err}", severity="error")
         else:
@@ -270,8 +268,11 @@ class DashboardPane(Widget):
         await self._refresh_state()
 
     async def _do_restart(self) -> None:
-        docker.restart(app_config.minecraft_container)
-        self.app.notify("Servidor reiniciado", severity="information")
+        out, err = await asyncio.to_thread(docker.restart, app_config.minecraft_container)
+        if err and not out:
+            self.app.notify(f"Error al reiniciar: {err}", severity="error")
+        else:
+            self.app.notify("Servidor reiniciado", severity="information")
         await self._refresh_state()
 
     async def _reload_tunnel_link(self) -> None:

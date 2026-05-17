@@ -1,6 +1,6 @@
-/* ═══════════════════════════════════════════
+/* ===========================================
    MAIN LAYOUT
-   ═══════════════════════════════════════════ */
+   =========================================== */
 
 Screen {
     layout: vertical;
@@ -11,7 +11,7 @@ Screen {
     height: 1fr;
 }
 
-/* ─── Sidebar ─── */
+/* --- Sidebar --- */
 #sidebar {
     width: 24;
     background: $panel;
@@ -56,7 +56,7 @@ Screen {
     text-style: italic;
 }
 
-/* ─── Content area ─── */
+/* --- Content area --- */
 #content-area {
     width: 1fr;
     height: 1fr;
@@ -68,7 +68,7 @@ ContentSwitcher {
     height: 100%;
 }
 
-/* ─── Pane base ─── */
+/* --- Pane base --- */
 .feature-pane {
     width: 100%;
     height: 100%;
@@ -81,7 +81,7 @@ ContentSwitcher {
     margin-bottom: 1;
 }
 
-/* ─── Status bar at footer ─── */
+/* --- Status bar at footer --- */
 #status-bar {
     height: 1;
     background: $primary-darken-2;
@@ -94,7 +94,7 @@ ContentSwitcher {
     margin-right: 3;
 }
 
-/* ─── Generic cards ─── */
+/* --- Generic cards --- */
 .card {
     border: solid $primary-darken-2;
     background: $panel;
@@ -108,7 +108,7 @@ ContentSwitcher {
     margin-bottom: 1;
 }
 
-/* ─── Buttons ─── */
+/* --- Buttons --- */
 .btn-danger {
     background: $error;
     color: $text;
@@ -134,7 +134,7 @@ ContentSwitcher {
     margin-right: 1;
 }
 
-/* ─── Status labels ─── */
+/* --- Status labels --- */
 .status-running {
     color: $success;
     text-style: bold;
@@ -150,12 +150,12 @@ ContentSwitcher {
     text-style: bold;
 }
 
-/* ─── DataTable ─── */
+/* --- DataTable --- */
 DataTable {
     height: 1fr;
 }
 
-/* ─── Help screen ─── */
+/* --- Help screen --- */
 #help-container {
     width: 80%;
     height: 80%;
@@ -169,7 +169,7 @@ DataTable {
     overflow-y: auto;
 }
 
-/* ─── Startup screen ─── */
+/* --- Startup screen --- */
 #startup-container {
     width: 60;
     height: auto;
@@ -184,7 +184,7 @@ DataTable {
     margin-bottom: 1;
 }
 
-/* ─── Modals ─── */
+/* --- Modals --- */
 .modal-container {
     width: 60;
     height: auto;

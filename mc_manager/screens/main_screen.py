@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import (
@@ -34,6 +36,7 @@ FEATURES = [
     ("compose_editor",    "Editor Compose",      "🐳"),
     ("alerts",            "Alertas",             "🔔"),
     ("world_stats",       "Stats del Mundo",     "🌍"),
+    ("plugins",           "Plugins",             "🔌"),
 ]
 
 ADVANCED_SEPARATOR_IDX = 8  # index where "Avanzado" separator appears
@@ -112,6 +115,7 @@ class MainScreen(Screen):
         from mc_manager.features.compose_editor.widget import ComposeEditorPane
         from mc_manager.features.alerts.widget import AlertsPane
         from mc_manager.features.world_stats.widget import WorldStatsPane
+        from mc_manager.features.plugins.widget import PluginsPane
 
         return ContentSwitcher(
             DashboardPane(id="dashboard"),
@@ -128,6 +132,7 @@ class MainScreen(Screen):
             ComposeEditorPane(id="compose_editor"),
             AlertsPane(id="alerts"),
             WorldStatsPane(id="world_stats"),
+            PluginsPane(id="plugins"),
             initial="dashboard",
         )
 
@@ -149,7 +154,7 @@ class MainScreen(Screen):
         self.run_worker(self._async_check_state(), exclusive=False)
 
     async def _async_check_state(self) -> None:
-        state = docker.get_container_state(app_config.minecraft_container)
+        state = await asyncio.to_thread(docker.get_container_state, app_config.minecraft_container)
         self._server_state = state
         self.post_message(ContainerStateChanged(state, app_config.minecraft_container))
 
@@ -184,13 +189,13 @@ class MainScreen(Screen):
         self.run_worker(self._toggle_server(), exclusive=True, name="server-toggle")
 
     async def _toggle_server(self) -> None:
-        state = docker.get_container_state(app_config.minecraft_container)
+        state = await asyncio.to_thread(docker.get_container_state, app_config.minecraft_container)
         if state == ContainerState.RUNNING:
             self.app.notify("Deteniendo servidor...", severity="warning")
-            docker.stop()
+            await asyncio.to_thread(docker.stop)
         else:
             self.app.notify("Iniciando servidor...", severity="information")
-            docker.start()
+            await asyncio.to_thread(docker.start)
         await self._async_check_state()
 
     def action_request_quit(self) -> None:

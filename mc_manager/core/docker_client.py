@@ -36,7 +36,7 @@ class DockerClient:
         """Run a command and return (stdout, stderr). Never raises."""
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True,
+                cmd, capture_output=True, text=True, encoding="utf-8",
                 timeout=timeout, cwd=str(self.compose_dir)
             )
             return result.stdout.strip(), result.stderr.strip()
@@ -105,7 +105,7 @@ class DockerClient:
         try:
             result = subprocess.run(
                 ["docker", "exec", container] + command.split(),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
                 cwd=str(self.compose_dir)
             )
             return result.stdout.strip(), result.stderr.strip(), result.returncode

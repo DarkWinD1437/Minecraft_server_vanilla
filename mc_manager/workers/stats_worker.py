@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 import psutil
@@ -23,9 +24,9 @@ async def run_stats_worker(app: "App") -> None:
     container = app_config.minecraft_container
 
     while True:
+        # Docker container stats — fallo aquí no debe afectar las stats del sistema
         try:
-            # Container stats
-            stats_dict, err = docker.get_stats(container)
+            stats_dict, err = await asyncio.to_thread(docker.get_stats, container)
             if stats_dict:
                 cpu_pct = parse_cpu_pct(stats_dict.get("CPUPerc", "0%"))
                 ram_used_mb, ram_limit_mb = parse_docker_mem_usage(
@@ -50,22 +51,22 @@ async def run_stats_worker(app: "App") -> None:
                     pids=pids,
                 ))
             else:
-                # Container not running — post zeros
                 app.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
+        except Exception as exc:
+            logging.warning("stats_worker docker error: %s", exc)
+            app.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
 
-            # System stats
+        # Stats del sistema host — independiente de Docker, siempre se publica
+        try:
             cpu = psutil.cpu_percent(interval=None)
             mem = psutil.virtual_memory()
-            ram_used_gb = mem.used / (1024**3)
-            ram_total_gb = mem.total / (1024**3)
             app.post_message(SystemStatsUpdated(
                 cpu_pct=cpu,
                 ram_pct=mem.percent,
-                ram_used_gb=ram_used_gb,
-                ram_total_gb=ram_total_gb,
+                ram_used_gb=mem.used / (1024**3),
+                ram_total_gb=mem.total / (1024**3),
             ))
-
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.warning("stats_worker psutil error: %s", exc)
 
         await asyncio.sleep(interval)

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 _LEVEL_PATTERN = re.compile(r"\[([\d:]+)\s+(INFO|WARN|WARNING|ERROR|FATAL|DEBUG)\]", re.IGNORECASE)
 _PLAYIT_URL = re.compile(r"https://(?:www\.)?playit\.gg\S+", re.IGNORECASE)
+_PLAYIT_CONNECT_ADDR = re.compile(r"connect_addr:\s*([\d\.]+:\d+)")
 _PLAYER_JOIN = re.compile(r"(\w+) joined the game")
 _PLAYER_LEAVE = re.compile(r"(\w+) left the game")
 
@@ -68,6 +69,14 @@ async def run_log_worker(app: "App", container: str) -> None:
                             _found_links.add(url)
                             app.post_message(PlayitLinkFound(url=url))
                             app.post_message(TunnelLinkUpdated(url=url, container_running=True))
+                    else:
+                        # playit-agent v0.17 logs connect_addr: IP:PORT when a client connects
+                        addr_match = _PLAYIT_CONNECT_ADDR.search(line)
+                        if addr_match:
+                            addr = addr_match.group(1)
+                            if addr not in _found_links:
+                                _found_links.add(addr)
+                                app.post_message(TunnelLinkUpdated(url=addr, container_running=True))
 
         except FileNotFoundError:
             # Docker not found; wait and retry

@@ -13,6 +13,7 @@ from mc_manager.core.docker_client import ContainerState
 
 
 _PLAYIT_URL = re.compile(r"https://(?:www\.)?playit\.gg\S+", re.IGNORECASE)
+_CONNECT_ADDR = re.compile(r"connect_addr:\s*([\d\.]+:\d+)")
 
 
 class TunnelPane(Widget):
@@ -86,13 +87,14 @@ class TunnelPane(Widget):
         with Vertical(classes="tunnel-card"):
             yield Label("ℹ️  Información:", classes="tunnel-title")
             yield Static(
-                "Playit.gg es un servicio gratuito de túnel de red para juegos.\n"
+                "Playit.gg es un servicio gratuito de tunel de red para juegos.\n"
                 "Permite que otros jugadores se conecten al servidor Minecraft\n"
                 "sin necesidad de abrir puertos en el router.\n\n"
-                "1. Inicia el túnel con el botón 'Iniciar Túnel'\n"
-                "2. Espera a que aparezca el link (puede tardar ~30s la primera vez)\n"
-                "3. Comparte ese link con tus amigos para que se conecten\n"
-                "4. En Minecraft, usa el link como dirección del servidor",
+                "1. Inicia el tunel con el boton 'Iniciar Tunel'\n"
+                "2. La direccion publica aparece en playit.gg > Tunnels\n"
+                "   (el agente v0.17 no la imprime en los logs)\n"
+                "3. Cuando alguien se conecta, 'Buscar Link' detecta la IP:Puerto\n"
+                "4. Compartir esa direccion con tus amigos en Minecraft",
                 classes="tunnel-info"
             )
 
@@ -158,15 +160,18 @@ class TunnelPane(Widget):
         await self._check_state()
 
     async def _scan_logs_for_link(self) -> None:
-        logs, _ = docker.get_logs(app_config.tunnel_container, tail=100)
-        match = _PLAYIT_URL.search(logs)
+        logs, _ = docker.get_logs(app_config.tunnel_container, tail=200)
+        match = _PLAYIT_URL.search(logs) or _CONNECT_ADDR.search(logs)
         if match:
-            url = match.group(0)
+            url = match.group(1) if match.lastindex else match.group(0)
             self._link = url
             try:
                 self.query_one("#tunnel-link-display", Static).update(url)
             except Exception:
                 pass
-            self.app.notify("Link encontrado", severity="information")
+            self.app.notify("Direccion detectada en logs", severity="information")
         else:
-            self.app.notify("No se encontró link en los logs recientes", severity="warning")
+            self.app.notify(
+                "No se detecto direccion en logs. Buscala en playit.gg > Tunnels",
+                severity="warning"
+            )

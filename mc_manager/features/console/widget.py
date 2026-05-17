@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from textual.app import ComposeResult
@@ -149,9 +150,10 @@ class ConsolePane(Widget):
             pass
 
     async def _exec(self, command: str) -> None:
-        stdout, stderr, rc = docker.exec_command(
+        stdout, stderr, rc = await asyncio.to_thread(
+            docker.exec_command,
             app_config.minecraft_container,
-            f"rcon-cli {command}"
+            f"rcon-cli {command}",
         )
         if stdout:
             self._write_line(stdout, "INFO")

@@ -109,7 +109,7 @@ nano .env   # o el editor de tu preferencia
 Pegar el `SECRET_KEY` de Playit.gg en el archivo `.env`:
 
 ```
-PLAYIT_SECRET_KEY=tu_clave_aqui
+SECRET_KEY=tu_clave_aqui
 ```
 
 > **¿Cómo obtener el SECRET_KEY?** Crear cuenta en [playit.gg](https://playit.gg) → **Agents** → **Add Agent** → copiar la clave del comando `docker run` que muestra la página. Ver sección [Configurar el túnel Playit.gg](#configurar-el-túnel-playitgg-opcional) para más detalles.
@@ -195,7 +195,7 @@ notepad .env
 Pegar el `SECRET_KEY` de Playit.gg en el archivo `.env`:
 
 ```
-PLAYIT_SECRET_KEY=tu_clave_aqui
+SECRET_KEY=tu_clave_aqui
 ```
 
 > **¿Cómo obtener el SECRET_KEY?** Crear cuenta en [playit.gg](https://playit.gg) → **Agents** → **Add Agent** → copiar la clave del comando `docker run` que muestra la página. Ver sección [Configurar el túnel Playit.gg](#configurar-el-túnel-playitgg-opcional) para más detalles.

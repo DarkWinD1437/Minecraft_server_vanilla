@@ -1,3 +1,9 @@
 venv
 .claude
 .env
+__pycache__/
+*.pyc
+*.pyo
+datos_mc/
+logs/events.db
+*.db
