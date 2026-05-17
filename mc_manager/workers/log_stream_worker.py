@@ -79,11 +79,27 @@ async def run_log_worker(app: "App", container: str) -> None:
                                 app.post_message(TunnelLinkUpdated(url=addr, container_running=True))
 
         except FileNotFoundError:
-            # Docker not found; wait and retry
+            app.post_message(LogLine(
+                source="manager",
+                text=f"[Log] Docker no encontrado en PATH. ¿Está instalado y corriendo?",
+                level="ERROR",
+            ))
             await asyncio.sleep(10)
             continue
-        except Exception:
-            pass
+        except PermissionError:
+            app.post_message(LogLine(
+                source="manager",
+                text=f"[Log] Sin permiso para ejecutar Docker. En Linux: sudo usermod -aG docker $USER",
+                level="ERROR",
+            ))
+            await asyncio.sleep(10)
+            continue
+        except Exception as e:
+            app.post_message(LogLine(
+                source="manager",
+                text=f"[Log] Error al leer logs de '{container}': {e}",
+                level="ERROR",
+            ))
 
         # Container stopped or error — wait before retrying
         await asyncio.sleep(3)

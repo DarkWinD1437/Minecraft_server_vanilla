@@ -4,8 +4,7 @@
 
 #monitoring-pane {
     layout: vertical;
-    padding: 1 2;
-    overflow-y: auto;
+    padding: 0;
 }
 
 .monitor-section {

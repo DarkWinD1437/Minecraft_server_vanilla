@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 
 from textual.app import ComposeResult
@@ -20,6 +21,12 @@ _LEVEL_COLORS = {
     "FATAL": "bold red",
     "DEBUG": "dim",
 }
+
+# Matches: say <mensaje>  (con o sin espacio extra al inicio)
+_SAY_RE = re.compile(r"^say\s+(.+)$", re.IGNORECASE)
+
+# Color del nombre en chat cuando se usa el nombre personalizado
+_NAME_COLOR = "gold"
 
 
 class ConsolePane(Widget):
@@ -44,8 +51,12 @@ class ConsolePane(Widget):
         height: 3;
     }
     .console-toolbar Label {
-        margin-right: 2;
+        margin-right: 1;
         color: $text-muted;
+    }
+    #con-name-input {
+        width: 16;
+        margin-right: 1;
     }
     #console-log {
         height: 1fr;
@@ -75,12 +86,14 @@ class ConsolePane(Widget):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._auto_scroll = True
-        self._filter_text = ""
         self._paused = False
+        # Nombre que aparece en el chat al usar "say <mensaje>"
+        self._console_name: str = "Servidor"
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="console-toolbar"):
-            yield Label("Consola MC")
+            yield Label("Nombre en chat:")
+            yield Input(value=self._console_name, id="con-name-input", placeholder="Servidor")
             yield Button("Limpiar", id="con-clear", variant="default")
             yield Button("⏸ Pausar", id="con-pause", variant="default")
             yield Button("Auto-scroll: ON", id="con-autoscroll", variant="default")
@@ -95,15 +108,13 @@ class ConsolePane(Widget):
 
         with Horizontal(classes="console-input-row"):
             yield Label("> ")
-            yield Input(placeholder="Escribe un comando (ej: list, say Hola)", id="console-input")
+            yield Input(placeholder="Escribe un comando o 'say Hola'", id="console-input")
             yield Button("Enviar", id="con-send", variant="primary")
 
     def on_log_line(self, message: LogLine) -> None:
         if message.source != app_config.minecraft_container:
             return
         if self._paused:
-            return
-        if self._filter_text and self._filter_text.lower() not in message.text.lower():
             return
         self._write_line(message.text, message.level)
 
@@ -116,6 +127,10 @@ class ConsolePane(Widget):
                 log.scroll_end(animate=False)
         except Exception:
             pass
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "con-name-input":
+            self._console_name = event.value.strip() or "Servidor"
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
@@ -149,7 +164,22 @@ class ConsolePane(Widget):
         except Exception:
             pass
 
+    def _build_tellraw(self, message: str) -> str:
+        """Construye un comando tellraw con el nombre personalizado."""
+        name = self._console_name.replace('"', '\\"')
+        msg = message.replace('"', '\\"')
+        payload = json.dumps([
+            {"text": f"[{name}] ", "color": _NAME_COLOR, "bold": True},
+            {"text": msg, "color": "white"},
+        ])
+        return f"tellraw @a {payload}"
+
     async def _exec(self, command: str) -> None:
+        # Intercept "say <mensaje>" → tellraw con nombre personalizado
+        say_match = _SAY_RE.match(command)
+        if say_match:
+            command = self._build_tellraw(say_match.group(1))
+
         stdout, stderr, rc = await asyncio.to_thread(
             docker.exec_command,
             app_config.minecraft_container,

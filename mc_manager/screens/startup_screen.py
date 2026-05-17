@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import urllib.request
+from pathlib import Path
+
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
@@ -140,6 +145,11 @@ class StartupScreen(ModalScreen):
 
     async def _create_server(self) -> None:
         desc = self.query_one("#startup-description", Label)
+
+        # Pre-install Chunky before the server runs for the first time
+        desc.update("Pre-instalando Chunky para pre-generación del mapa...")
+        await asyncio.to_thread(self._ensure_chunky_installed)
+
         desc.update("Descargando imagen y creando contenedores...\n(puede tardar varios minutos la primera vez)")
         out, err = docker.start()
         if err and not out:
@@ -149,3 +159,28 @@ class StartupScreen(ModalScreen):
             self.query_one("#startup-status-label", Label).update("🟢  SERVIDOR EN LÍNEA")
         btn = self.query_one("#btn-create", Button)
         btn.label = "✓  Creado"
+
+    def _ensure_chunky_installed(self) -> None:
+        """Pre-descarga Chunky a datos_mc/plugins/ antes del primer arranque."""
+        plugins_dir: Path = app_config.data_dir / "plugins"
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+
+        # Skip if any Chunky jar already exists
+        if any("chunky" in p.name.lower() for p in plugins_dir.glob("*.jar")):
+            return
+
+        try:
+            url = "https://api.github.com/repos/pop4959/Chunky/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "MC-Manager/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+
+            for asset in data.get("assets", []):
+                name: str = asset["name"]
+                if "chunky" in name.lower() and name.endswith(".jar"):
+                    dest = plugins_dir / name
+                    urllib.request.urlretrieve(asset["browser_download_url"], dest)
+                    break
+        except Exception:
+            # Chunky download failure must not block the server from starting
+            pass

@@ -7,8 +7,8 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import Label, Button, DataTable
-from textual.containers import Horizontal, Vertical
+from textual.widgets import Label, Button, DataTable, Input
+from textual.containers import Horizontal, Vertical, ScrollableContainer
 
 from mc_manager.core.config import app_config, docker
 
@@ -54,6 +54,38 @@ _RECOMMENDED = [
         "project_id": "coordinateshud",
         "pattern": ".jar",
     },
+    {
+        "name": "Chunky",
+        "desc": "Pre-genera chunks del mundo — instala antes del primer arranque",
+        "url_info": "github.com/pop4959/Chunky",
+        "source": "github",
+        "repo": "pop4959/Chunky",
+        "pattern": "Chunky",
+    },
+    {
+        "name": "CoreProtect",
+        "desc": "Registro de bloques: quién rompió/colocó qué y cuándo",
+        "url_info": "coreprotect.net",
+        "source": "github",
+        "repo": "PlayPro/CoreProtect",
+        "pattern": "CoreProtect-",
+    },
+    {
+        "name": "Vault",
+        "desc": "Puente de economía y permisos — requerido por muchos plugins",
+        "url_info": "github.com/MilkBowl/Vault",
+        "source": "github",
+        "repo": "MilkBowl/Vault",
+        "pattern": "Vault",
+    },
+    {
+        "name": "ViaVersion",
+        "desc": "Permite conectar con versiones de cliente más nuevas que el servidor",
+        "url_info": "viaversion.com",
+        "source": "github",
+        "repo": "ViaVersion/ViaVersion",
+        "pattern": "ViaVersion-",
+    },
 ]
 
 
@@ -63,9 +95,13 @@ class PluginsPane(Widget):
     PluginsPane {
         width: 100%;
         height: 100%;
-        padding: 1 2;
+        padding: 0;
         layout: vertical;
-        overflow-y: auto;
+    }
+    #plug-scroll {
+        width: 100%;
+        height: 100%;
+        padding: 1 2;
     }
     .plug-title {
         text-style: bold;
@@ -122,6 +158,23 @@ class PluginsPane(Widget):
         width: 14;
         align: right middle;
     }
+    .url-install-row {
+        layout: horizontal;
+        height: 3;
+        margin-top: 1;
+        align: left middle;
+    }
+    .url-install-row Input {
+        width: 1fr;
+        margin-right: 1;
+    }
+    .url-install-row Button {
+        width: 18;
+    }
+    .url-hint {
+        color: $text-muted;
+        margin-top: 1;
+    }
     """
 
     def __init__(self, **kwargs) -> None:
@@ -129,41 +182,55 @@ class PluginsPane(Widget):
         self._plugins: list[Path] = []
 
     def compose(self) -> ComposeResult:
-        yield Label("🔌  Gestor de Plugins", classes="plug-title")
+        with ScrollableContainer(id="plug-scroll"):
+            yield Label("🔌  Gestor de Plugins", classes="plug-title")
 
-        with Vertical(classes="plug-card"):
-            yield Label("Plugins instalados:", classes="plug-title")
-            yield Label(
-                "Seleccionar fila y usar Activar / Desactivar. "
-                "Los JAR van en datos_mc/plugins/",
-                classes="plug-hint",
-            )
-            with Vertical(classes="plug-table-wrap"):
-                yield DataTable(id="plug-table", cursor_type="row")
-            with Horizontal(classes="plug-btn-row"):
-                yield Button("✅ Activar", id="plug-enable", variant="success")
-                yield Button("❌ Desactivar", id="plug-disable", variant="error")
-                yield Button("🔄 Refrescar", id="plug-refresh", variant="default")
-                yield Button("↺ Reiniciar servidor", id="plug-restart", variant="warning")
-            yield Label(
-                "⚠  El servidor debe reiniciarse para que los cambios surtan efecto.",
-                classes="plug-warn",
-            )
+            with Vertical(classes="plug-card"):
+                yield Label("Plugins instalados:", classes="plug-title")
+                yield Label(
+                    "Seleccionar fila y usar Activar / Desactivar. "
+                    "Los JAR van en datos_mc/plugins/",
+                    classes="plug-hint",
+                )
+                with Vertical(classes="plug-table-wrap"):
+                    yield DataTable(id="plug-table", cursor_type="row")
+                with Horizontal(classes="plug-btn-row"):
+                    yield Button("✅ Activar", id="plug-enable", variant="success")
+                    yield Button("❌ Desactivar", id="plug-disable", variant="error")
+                    yield Button("🔄 Refrescar", id="plug-refresh", variant="default")
+                    yield Button("↺ Reiniciar servidor", id="plug-restart", variant="warning")
+                yield Label(
+                    "⚠  El servidor debe reiniciarse para que los cambios surtan efecto.",
+                    classes="plug-warn",
+                )
 
-        with Vertical(classes="plug-card"):
-            yield Label("Plugins recomendados — ⬇ para instalar:", classes="plug-title")
-            for i, plugin in enumerate(_RECOMMENDED):
-                with Horizontal(classes="rec-row"):
-                    with Vertical(classes="rec-info"):
-                        yield Label(plugin["name"], classes="rec-name")
-                        yield Label(plugin["desc"], classes="rec-desc")
-                        yield Label(plugin["url_info"], classes="rec-url")
-                    yield Button(
-                        "⬇ Instalar",
-                        id=f"rec-install-{i}",
-                        variant="primary",
-                        classes="rec-install-btn",
+            with Vertical(classes="plug-card"):
+                yield Label("Plugins recomendados — ⬇ para instalar:", classes="plug-title")
+                for i, plugin in enumerate(_RECOMMENDED):
+                    with Horizontal(classes="rec-row"):
+                        with Vertical(classes="rec-info"):
+                            yield Label(plugin["name"], classes="rec-name")
+                            yield Label(plugin["desc"], classes="rec-desc")
+                            yield Label(plugin["url_info"], classes="rec-url")
+                        yield Button(
+                            "⬇ Instalar",
+                            id=f"rec-install-{i}",
+                            variant="primary",
+                            classes="rec-install-btn",
+                        )
+
+            with Vertical(classes="plug-card"):
+                yield Label("Instalar desde URL directa:", classes="plug-title")
+                yield Label(
+                    "Pega la URL de descarga directa de cualquier .jar (Hangar, SpigotMC, GitHub, etc.)",
+                    classes="url-hint",
+                )
+                with Horizontal(classes="url-install-row"):
+                    yield Input(
+                        placeholder="https://ejemplo.com/plugin.jar",
+                        id="url-install-input",
                     )
+                    yield Button("⬇ Instalar JAR", id="url-install-btn", variant="primary")
 
     def on_mount(self) -> None:
         table = self.query_one("#plug-table", DataTable)
@@ -210,6 +277,8 @@ class PluginsPane(Widget):
             idx = int(bid.split("-")[-1])
             event.button.disabled = True
             self.run_worker(self._install_plugin(idx, event.button), exclusive=False)
+        elif bid == "url-install-btn":
+            self.run_worker(self._install_from_url(event.button), exclusive=False)
 
     def _toggle(self, enable: bool) -> None:
         table = self.query_one("#plug-table", DataTable)
@@ -310,5 +379,42 @@ class PluginsPane(Widget):
             self._refresh()
         except Exception as exc:
             self.app.notify(f"❌ Error instalando {name}: {exc}", severity="error")
+        finally:
+            btn.disabled = False
+
+    async def _install_from_url(self, btn: Button) -> None:
+        """Descarga un .jar desde una URL directa pegada por el usuario."""
+        try:
+            url_input = self.query_one("#url-install-input", Input)
+            url = url_input.value.strip()
+        except Exception:
+            return
+
+        if not url:
+            self.app.notify("Pega una URL antes de instalar.", severity="warning")
+            return
+        if not url.lower().endswith(".jar"):
+            self.app.notify("La URL debe terminar en .jar", severity="warning")
+            return
+
+        btn.disabled = True
+        filename = url.split("/")[-1].split("?")[0] or "plugin.jar"
+        self.app.notify(f"Descargando {filename}...", severity="information")
+
+        plugins_dir = self._plugins_dir()
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+        dest = plugins_dir / filename
+
+        try:
+            await asyncio.to_thread(self._download_jar, url, dest)
+            self.app.notify(
+                f"✅ {filename} instalado. Reinicia el servidor para activarlo.",
+                severity="information",
+                timeout=8,
+            )
+            url_input.value = ""
+            self._refresh()
+        except Exception as exc:
+            self.app.notify(f"❌ Error descargando plugin: {exc}", severity="error")
         finally:
             btn.disabled = False

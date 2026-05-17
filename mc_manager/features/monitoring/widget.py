@@ -15,7 +15,11 @@ class MonitoringPane(Widget):
     MonitoringPane {
         width: 100%;
         height: 100%;
-        overflow-y: auto;
+        padding: 0;
+    }
+    #mon-scroll {
+        width: 100%;
+        height: 100%;
         padding: 1 2;
     }
     .mon-section-title {
@@ -38,35 +42,36 @@ class MonitoringPane(Widget):
     """
 
     def compose(self) -> ComposeResult:
-        yield Label("📊  SERVIDOR MINECRAFT", classes="mon-section-title")
+        with ScrollableContainer(id="mon-scroll"):
+            yield Label("📊  SERVIDOR MINECRAFT", classes="mon-section-title")
 
-        with Horizontal(classes="sparkline-row"):
-            yield SparklineCard("CPU del Servidor", unit="%", extra_css_class="sparkline-cpu", id="mc-cpu")
-            yield SparklineCard("RAM del Servidor", unit="MB", extra_css_class="sparkline-ram", id="mc-ram")
+            with Horizontal(classes="sparkline-row"):
+                yield SparklineCard("CPU del Servidor", unit="%", extra_css_class="sparkline-cpu", id="mc-cpu")
+                yield SparklineCard("RAM del Servidor", unit="MB", extra_css_class="sparkline-ram", id="mc-ram")
 
-        with Horizontal(classes="sparkline-row"):
-            yield SparklineCard("Red Entrada", unit="KB/s", extra_css_class="sparkline-net", id="mc-net-in")
-            yield SparklineCard("Red Salida", unit="KB/s", extra_css_class="sparkline-net", id="mc-net-out")
+            with Horizontal(classes="sparkline-row"):
+                yield SparklineCard("Red Entrada", unit="KB/s", extra_css_class="sparkline-net", id="mc-net-in")
+                yield SparklineCard("Red Salida", unit="KB/s", extra_css_class="sparkline-net", id="mc-net-out")
 
-        with Horizontal(classes="sparkline-row"):
-            yield SparklineCard("Disco Lectura", unit="MB/s", extra_css_class="sparkline-disk", id="mc-disk-r")
-            yield SparklineCard("Disco Escritura", unit="MB/s", extra_css_class="sparkline-disk", id="mc-disk-w")
+            with Horizontal(classes="sparkline-row"):
+                yield SparklineCard("Disco Lectura", unit="MB/s", extra_css_class="sparkline-disk", id="mc-disk-r")
+                yield SparklineCard("Disco Escritura", unit="MB/s", extra_css_class="sparkline-disk", id="mc-disk-w")
 
-        with Vertical(classes="meter-section"):
-            yield Label("Uso Instantáneo:", classes="mon-section-title")
-            yield MeterBar("CPU MC:", total=100.0, id="bar-mc-cpu")
-            yield MeterBar("RAM MC:", total=100.0, id="bar-mc-ram")
+            with Vertical(classes="meter-section"):
+                yield Label("Uso Instantáneo:", classes="mon-section-title")
+                yield MeterBar("CPU MC:", total=100.0, id="bar-mc-cpu")
+                yield MeterBar("RAM MC:", total=100.0, id="bar-mc-ram")
 
-        yield Label("💻  SISTEMA HOST", classes="mon-section-title")
+            yield Label("💻  SISTEMA HOST", classes="mon-section-title")
 
-        with Horizontal(classes="sparkline-row"):
-            yield SparklineCard("CPU Sistema", unit="%", extra_css_class="sparkline-cpu", id="sys-cpu")
-            yield SparklineCard("RAM Sistema", unit="GB", extra_css_class="sparkline-ram", id="sys-ram")
+            with Horizontal(classes="sparkline-row"):
+                yield SparklineCard("CPU Sistema", unit="%", extra_css_class="sparkline-cpu", id="sys-cpu")
+                yield SparklineCard("RAM Sistema", unit="GB", extra_css_class="sparkline-ram", id="sys-ram")
 
-        with Vertical(classes="meter-section"):
-            yield Label("Uso Instantáneo:", classes="mon-section-title")
-            yield MeterBar("CPU Sistema:", total=100.0, id="bar-sys-cpu")
-            yield MeterBar("RAM Sistema:", total=100.0, id="bar-sys-ram")
+            with Vertical(classes="meter-section"):
+                yield Label("Uso Instantáneo:", classes="mon-section-title")
+                yield MeterBar("CPU Sistema:", total=100.0, id="bar-sys-cpu")
+                yield MeterBar("RAM Sistema:", total=100.0, id="bar-sys-ram")
 
     def on_stats_updated(self, message: StatsUpdated) -> None:
         try: self.query_one("#mc-cpu", SparklineCard).push(message.cpu_pct)

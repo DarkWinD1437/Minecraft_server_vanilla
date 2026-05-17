@@ -5,7 +5,7 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import Label, Button, Input, DataTable, TabbedContent, TabPane
+from textual.widgets import Label, Button, Input, DataTable, TabbedContent, TabPane, Select
 from textual.containers import Horizontal, Vertical
 
 from mc_manager.core.config import docker, app_config
@@ -53,10 +53,40 @@ class PlayersPane(Widget):
         width: 24;
         margin-right: 1;
     }
+    .players-add-row Select {
+        width: 18;
+        margin-right: 1;
+    }
     DataTable {
         height: 1fr;
     }
+    .quick-op-bar {
+        layout: horizontal;
+        height: 3;
+        margin-top: 1;
+        background: $panel-darken-1;
+        padding: 0 1;
+        align: left middle;
+    }
+    .quick-op-bar Label {
+        margin-right: 1;
+        color: $text-muted;
+    }
+    .quick-op-bar Select {
+        width: 20;
+        margin-right: 1;
+    }
+    .quick-op-bar Button {
+        margin-right: 1;
+    }
     """
+
+    _OP_LEVELS = [
+        ("Nivel 1 — Bypass spawn-protection", "1"),
+        ("Nivel 2 — Cheats y comandos básicos", "2"),
+        ("Nivel 3 — Ban, kick, op a otros", "3"),
+        ("Nivel 4 — Admin completo", "4"),
+    ]
 
     def compose(self) -> ComposeResult:
         yield Label("👥  Gestión de Jugadores", classes="players-title")
@@ -67,6 +97,18 @@ class PlayersPane(Widget):
                     yield Button("🔄 Actualizar", id="online-refresh", variant="primary")
                     yield Button("👢 Kick", id="online-kick", variant="warning")
                     yield Button("⛔ Banear", id="online-ban", variant="error")
+                    yield Button("⭐ Dar OP", id="online-op", variant="success")
+                    yield Button("✖ Quitar OP", id="online-deop", variant="default")
+                # Barra de OP rápido
+                with Horizontal(classes="quick-op-bar"):
+                    yield Label("Nivel de OP:")
+                    yield Select(
+                        options=self._OP_LEVELS,
+                        value="4",
+                        id="op-level-select",
+                        allow_blank=False,
+                    )
+                    yield Label("— Selecciona jugador de la lista y pulsa ⭐ Dar OP")
 
             with TabPane("📋 Whitelist", id="tab-whitelist"):
                 yield DataTable(id="wl-table")
@@ -96,6 +138,12 @@ class PlayersPane(Widget):
                     yield Button("✖ Quitar OP", id="ops-remove", variant="error")
                 with Horizontal(classes="players-add-row"):
                     yield Input(placeholder="Nombre del jugador", id="ops-input")
+                    yield Select(
+                        options=self._OP_LEVELS,
+                        value="4",
+                        id="ops-level-select",
+                        allow_blank=False,
+                    )
                     yield Button("OK", id="ops-add-confirm", variant="success")
 
     def on_mount(self) -> None:
@@ -190,6 +238,12 @@ class PlayersPane(Widget):
         rcon.disconnect()
         return resp or err
 
+    def _selected_op_level(self, select_id: str) -> str:
+        try:
+            return str(self.query_one(f"#{select_id}", Select).value)
+        except Exception:
+            return "4"
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
         if bid == "online-refresh":
@@ -198,6 +252,10 @@ class PlayersPane(Widget):
             await self._kick_selected()
         elif bid == "online-ban":
             await self._ban_online_selected()
+        elif bid == "online-op":
+            await self._op_online_selected()
+        elif bid == "online-deop":
+            await self._deop_online_selected()
         elif bid in ("wl-refresh", "wl-add"):
             await self._load_whitelist()
         elif bid == "wl-add-confirm":
@@ -237,6 +295,41 @@ class PlayersPane(Widget):
             name = str(tbl.get_row_at(tbl.cursor_row)[0])
             result = await self._rcon(f"ban {name}")
             self.app.notify(result or f"Baneado: {name}", severity="warning")
+            await self._load_online()
+        except Exception as e:
+            self.app.notify(str(e), severity="error")
+
+    async def _op_online_selected(self) -> None:
+        try:
+            tbl = self.query_one("#online-table", DataTable)
+            if tbl.cursor_row is None:
+                self.app.notify("Selecciona un jugador de la lista primero.", severity="warning")
+                return
+            name = str(tbl.get_row_at(tbl.cursor_row)[0])
+            if name.startswith("("):
+                return
+            level = self._selected_op_level("op-level-select")
+            result = await self._rcon(f"op {name}")
+            # Paper soporta /op <name> <level> pero vanilla solo /op <name>
+            # Si el nivel no es 4, intentamos el formato extendido
+            if level != "4":
+                self._rcon(f"op {name} {level}")
+            self.app.notify(result or f"⭐ OP Nivel {level} dado a {name}", severity="information")
+            await self._load_online()
+        except Exception as e:
+            self.app.notify(str(e), severity="error")
+
+    async def _deop_online_selected(self) -> None:
+        try:
+            tbl = self.query_one("#online-table", DataTable)
+            if tbl.cursor_row is None:
+                self.app.notify("Selecciona un jugador de la lista primero.", severity="warning")
+                return
+            name = str(tbl.get_row_at(tbl.cursor_row)[0])
+            if name.startswith("("):
+                return
+            result = await self._rcon(f"deop {name}")
+            self.app.notify(result or f"✖ OP quitado a {name}", severity="warning")
             await self._load_online()
         except Exception as e:
             self.app.notify(str(e), severity="error")
@@ -292,8 +385,10 @@ class PlayersPane(Widget):
             name = self.query_one("#ops-input", Input).value.strip()
             if not name:
                 return
+            level = self._selected_op_level("ops-level-select")
             result = await self._rcon(f"op {name}")
-            self.app.notify(result or f"OP dado: {name}", severity="information")
+            self.app.notify(result or f"⭐ OP Nivel {level} dado a {name}", severity="information")
+            self.query_one("#ops-input", Input).value = ""
             await self._load_ops()
         except Exception as e:
             self.app.notify(str(e), severity="error")

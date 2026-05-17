@@ -16,6 +16,7 @@ from mc_manager.core.events import (
     StatsUpdated, SystemStatsUpdated, LogLine, ContainerStateChanged,
     PlayitLinkFound, TunnelLinkUpdated, AlertTriggered
 )
+from mc_manager.features.logs.widget import LogViewerPane
 from mc_manager.screens.help_screen import HelpScreen
 
 
@@ -258,3 +259,10 @@ class MainScreen(Screen):
             severity="warning" if message.severity == "warning" else "error",
             timeout=8,
         )
+
+    def on_content_switcher_changed(self, event: ContentSwitcher.Changed) -> None:
+        if event.value == "logs":
+            try:
+                self.query_one("#logs", LogViewerPane)._rerender_buffer()
+            except Exception:
+                pass

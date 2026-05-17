@@ -11,7 +11,7 @@ Panel de control de terminal (TUI) para gestionar un servidor de Minecraft Java 
 
 ## Características
 
-El panel incluye **14 módulos** accesibles desde un menú lateral:
+El panel incluye **15 módulos** accesibles desde un menú lateral:
 
 | # | Módulo | Descripción |
 |---|--------|-------------|
@@ -29,6 +29,7 @@ El panel incluye **14 módulos** accesibles desde un menú lateral:
 | 12 | **Editor Compose** | Editor visual de `docker-compose.yml` con vista YAML |
 | 13 | **Alertas** | Reglas configurables de alertas por CPU y RAM con anti-flapping |
 | 14 | **Stats Mundo** | Tamaño en disco por dimensión, nombre del mundo y semilla |
+| 15 | **Plugins** | Gestión de plugins instalados + descarga de recomendados (Chunky, EssentialsX, LuckPerms…) |
 
 ---
 
@@ -128,7 +129,10 @@ docker compose up -d
 ### 7. Ejecutar el panel
 
 ```bash
-# Con el entorno virtual activo
+# Opción A — script todo-en-uno (recomendado)
+./start.sh
+
+# Opción B — manual con el entorno virtual activo
 python app.py
 ```
 
@@ -213,7 +217,14 @@ docker compose up -d
 ### 7. Ejecutar el panel
 
 ```powershell
-# Con el entorno virtual activo
+# Opción A — script todo-en-uno (recomendado)
+.\start.ps1
+
+# Si PowerShell bloquea la ejecución de scripts, ejecuta primero:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Opción B — manual con el entorno virtual activo
+.\venv\Scripts\Activate.ps1
 python app.py
 ```
 
@@ -229,9 +240,12 @@ Editar `docker-compose.yml` antes de levantar el servidor (o usar el módulo **E
 
 ```yaml
 environment:
-  MEMORY: 5G                  # RAM asignada al servidor
+  INIT_MEMORY: 4G             # Heap mínimo JVM (-Xms). Igual al máximo es lo recomendado por Aikar
+  MAX_MEMORY: 5G              # Heap máximo JVM (-Xmx). Ajustar según RAM disponible
   RCON_PASSWORD: mcpassword   # Cambiar por una contraseña segura
 ```
+
+> **JVM flags:** El `docker-compose.yml` ya incluye las **Aikar flags** completas optimizadas para G1GC, recomendadas para servidores Paper/Purpur. No es necesario modificarlas para uso normal.
 
 Si cambias la contraseña, también actualizar en `mc_manager/core/config.py`:
 
@@ -273,6 +287,8 @@ El servicio `playit-agent` en `docker-compose.yml` permite que jugadores externo
 ```
 Minecraft_server_vanilla/
 ├── app.py                     # Punto de entrada
+├── start.sh                   # Launcher Linux (bash)
+├── start.ps1                  # Launcher Windows (PowerShell)
 ├── docker-compose.yml         # Configuración Docker (servidor + túnel)
 ├── .env.example               # Plantilla de variables de entorno (copiar a .env)
 ├── .env                       # Variables de entorno locales — NO subir a git
@@ -338,16 +354,28 @@ pip install -r requirements.txt
 **"Cannot connect to Docker"**
 - Linux: verificar que el servicio esté corriendo: `sudo systemctl start docker`
 - Windows: abrir Docker Desktop y esperar a que esté listo
-- Asegurarse de que tu usuario esté en el grupo `docker` (Linux): `sudo usermod -aG docker $USER`
+- Asegurarse de que tu usuario esté en el grupo `docker` (Linux): `sudo usermod -aG docker $USER && newgrp docker`
 
-**La terminal se ve mal / caracteres extraños**
-- Usar una terminal con soporte Unicode y colores: **Windows Terminal**, **iTerm2**, **GNOME Terminal**
-- Ajustar el tamaño mínimo a 120×35 caracteres
+**Los logs no aparecen en el visor (Consola / Log Viewer)**
+- Verificar que el contenedor esté corriendo: `docker ps`
+- En Linux, comprobar permisos Docker: `docker info` — si falla con "permission denied", agregar usuario al grupo docker (ver arriba)
+- El Log Viewer muestra errores en rojo si Docker no responde; busca mensajes `[Log] Error al leer logs`
+- Asegurarse de tener al menos **120×35** caracteres de terminal para que todos los widgets se rendericen correctamente
+
+**La terminal se ve mal / botones cortados / scroll no responde**
+- Usar una terminal con soporte Unicode y colores: **Windows Terminal**, **GNOME Terminal**, **iTerm2**
+- Ajustar el tamaño mínimo a **120×35** caracteres — en pantallas pequeñas usa fuente de tamaño 10-11pt
+- En laptops con pantalla pequeña: maximizar la ventana de terminal antes de abrir el panel
 
 **RCON no conecta / módulo Jugadores no funciona**
 - Verificar que el servidor esté corriendo: `docker ps`
 - Confirmar que `RCON_PASSWORD` en `docker-compose.yml` coincide con `config.py`
 - El servidor tarda ~30-60 segundos en iniciar completamente antes de aceptar RCON
+
+**Chunky no aparece en datos_mc/plugins/ después del primer arranque**
+- Verificar conexión a internet durante el paso "Crear y Levantar"
+- Si la descarga automática falló, ir al módulo **Plugins** y pulsar "⬇ Instalar" en Chunky manualmente
+- Una vez instalado, reiniciar el servidor y ejecutar `/chunky radius 1500 && /chunky start`
 
 **Puerto 25565 ya en uso**
 ```bash
