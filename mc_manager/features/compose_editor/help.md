@@ -56,7 +56,16 @@ Solo al reiniciar los contenedores (`docker compose up -d`). Un servidor corrien
 
 ---
 
+## Atajos de teclado
+
+| Tecla / Acción | Descripción |
+|----------------|-------------|
+| Sidebar → Avanzado → Editor Compose | Navegar a esta sección |
+| `?` | Abrir esta ayuda |
+
+---
+
 ## Solución de problemas
 
-- **El servidor no inicia tras cambiar la versión**: La versión puede no existir. Verifica en la [imagen Docker de itzg](https://hub.docker.com/r/itzg/minecraft-server).
+- **El servidor no inicia tras cambiar la versión**: La versión puede no existir. Verifica en la imagen Docker de itzg.
 - **Error al guardar**: Verifica que `docker-compose.yml` exista y tenga permisos de escritura.

@@ -11,8 +11,9 @@ Permite crear, listar y restaurar copias de seguridad (backups) de los datos del
 ### Crear un backup
 1. Escribe un nombre descriptivo en el campo "Nombre del backup" (ej: `antes-del-update`).
 2. Activa o desactiva la compresión (`.tar.gz` vs `.tar`). La compresión ocupa menos espacio.
-3. Haz clic en **Crear Backup Ahora**.
-4. El proceso enviará `save-off` al servidor (pausar guardado automático) antes de comprimir, y `save-on` al terminar. Esto garantiza que el backup sea consistente.
+3. Configura la **retención máxima** (opcional — ver sección más abajo).
+4. Haz clic en **Crear Backup Ahora**.
+5. El proceso enviará `save-off` al servidor (pausar guardado automático) antes de comprimir, y `save-on` al terminar. Esto garantiza que el backup sea consistente.
 
 ### Restaurar un backup
 1. Selecciona el backup en la lista (haz clic en él).
@@ -23,6 +24,19 @@ Permite crear, listar y restaurar copias de seguridad (backups) de los datos del
 ### Eliminar un backup
 1. Selecciona el backup en la lista.
 2. Haz clic en **Eliminar**.
+
+---
+
+## Retención automática de backups
+
+El campo **Retención máx.** controla cuántos backups se conservan automáticamente:
+
+- **0** (por defecto): sin límite — nunca elimina backups automáticamente
+- **N > 0**: después de cada backup creado, elimina los más antiguos hasta mantener solo N backups
+
+**Ejemplo:** Si tienes 8 backups y configuras retención en 5, al crear uno nuevo quedaran 5 (el nuevo + los 4 más recientes).
+
+> La retención solo se aplica al **crear** un backup nuevo. No afecta backups existentes hasta la próxima creación.
 
 ---
 

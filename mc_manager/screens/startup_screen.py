@@ -10,6 +10,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
 from textual.containers import Center, Vertical
 
+from mc_manager.__about__ import __brand__, __copyright__
 from mc_manager.core.config import docker, app_config, os_info
 from mc_manager.core.docker_client import ContainerState
 
@@ -32,6 +33,11 @@ class StartupScreen(ModalScreen):
         text-align: center;
         text-style: bold;
         color: $accent;
+        margin-bottom: 0;
+    }
+    #startup-brand {
+        text-align: center;
+        color: $text-muted;
         margin-bottom: 1;
     }
     #startup-os {
@@ -64,6 +70,7 @@ class StartupScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="startup-box"):
             yield Label("⛏  MC SERVER MANAGER", id="startup-title")
+            yield Label(f"{__brand__}  —  {__copyright__}", id="startup-brand")
             yield Label(f"Sistema: {os_info.display_name}", id="startup-os")
             yield Label("Comprobando servidor...", id="startup-status-label")
             yield Label("", id="startup-description")

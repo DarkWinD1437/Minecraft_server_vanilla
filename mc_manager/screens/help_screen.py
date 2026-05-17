@@ -7,6 +7,8 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Markdown, Label
 from textual.containers import Vertical, Center
 
+from mc_manager.__about__ import __brand__, __copyright__
+
 
 _FEATURE_TITLES = {
     "dashboard": "Dashboard",
@@ -23,6 +25,7 @@ _FEATURE_TITLES = {
     "compose_editor": "Editor Compose",
     "alerts": "Alertas",
     "world_stats": "Stats del Mundo",
+    "plugins": "Gestor de Plugins",
 }
 
 
@@ -57,6 +60,12 @@ class HelpScreen(ModalScreen):
         align: center middle;
         margin-top: 1;
     }
+    #help-brand {
+        text-align: center;
+        color: $text-muted;
+        text-style: italic;
+        height: 1;
+    }
     """
 
     def __init__(self, feature_id: str = "dashboard") -> None:
@@ -71,6 +80,7 @@ class HelpScreen(ModalScreen):
             yield Markdown(content, id="help-markdown")
             with Center(id="help-close-row"):
                 yield Button("Cerrar  [ESC]", id="btn-close", variant="default")
+            yield Label(f"{__brand__}  —  {__copyright__}", id="help-brand")
 
     def _load_help_content(self) -> str:
         features_dir = Path(__file__).parent.parent / "features"

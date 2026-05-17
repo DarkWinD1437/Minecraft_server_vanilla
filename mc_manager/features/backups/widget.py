@@ -70,6 +70,7 @@ class BackupsPane(Widget):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._backups: list[BackupInfo] = []
+        self._max_backups: int = 0  # 0 = sin límite
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="backups-left"):
@@ -90,6 +91,10 @@ class BackupsPane(Widget):
             with Horizontal(classes="backup-opt-row"):
                 yield Label("Comprimir (.tar.gz):")
                 yield Switch(value=True, id="bk-compress")
+
+            with Horizontal(classes="backup-opt-row"):
+                yield Label("Retención máx. (0=∞):")
+                yield Input(value="0", id="bk-retention", placeholder="0")
 
             with Horizontal(classes="backup-btn-row"):
                 yield Button("💾 Crear Backup Ahora", id="bk-create", variant="success")
@@ -140,6 +145,24 @@ class BackupsPane(Widget):
         elif bid == "bk-delete":
             await self._delete_selected()
 
+    def _enforce_retention(self) -> None:
+        if self._max_backups <= 0:
+            return
+        backups = list_backups(app_config.backup_dir)
+        if len(backups) <= self._max_backups:
+            return
+        to_delete = backups[self._max_backups:]
+        deleted = 0
+        for bk in to_delete:
+            ok, _ = delete_backup(bk.path)
+            if ok:
+                deleted += 1
+        if deleted:
+            self.app.notify(
+                f"Retención: {deleted} backup(s) antiguo(s) eliminado(s)",
+                severity="information",
+            )
+
     async def _create_backup(self) -> None:
         try:
             btn = self.query_one("#bk-create", Button)
@@ -148,6 +171,10 @@ class BackupsPane(Widget):
 
             name = self.query_one("#bk-name", Input).value.strip() or "world"
             compress = self.query_one("#bk-compress", Switch).value
+            try:
+                self._max_backups = int(self.query_one("#bk-retention", Input).value or "0")
+            except ValueError:
+                self._max_backups = 0
 
             self.query_one("#backup-status", Static).update("Enviando save-off al servidor...")
 
@@ -199,6 +226,7 @@ class BackupsPane(Widget):
             pass
 
         await self._load_backups()
+        self._enforce_retention()
 
     async def _restore_selected(self) -> None:
         try:

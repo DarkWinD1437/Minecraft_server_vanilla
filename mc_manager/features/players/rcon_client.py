@@ -40,18 +40,22 @@ class RconClient:
         return True, ""
 
     def send(self, command: str) -> tuple[str, str]:
-        if self._sock is None:
-            ok, err = self.connect()
-            if not ok:
-                return "", err
-        try:
-            rid = self._next_id()
-            self._send_packet(rid, self._REQ_CMD, command)
-            _, _, payload = self._recv_packet()
-            return payload, ""
-        except OSError as e:
-            self._sock = None
-            return "", str(e)
+        for attempt in range(2):
+            if self._sock is None:
+                ok, err = self.connect()
+                if not ok:
+                    return "", err
+            try:
+                rid = self._next_id()
+                self._send_packet(rid, self._REQ_CMD, command)
+                _, _, payload = self._recv_packet()
+                return payload, ""
+            except OSError:
+                self._sock = None
+                if attempt == 0:
+                    continue
+                return "", "Conexión RCON perdida tras reintento"
+        return "", "No se pudo reconectar al RCON"
 
     def _send_packet(self, req_id: int, req_type: int, payload: str) -> None:
         payload_bytes = payload.encode("utf-8") + b"\x00\x00"

@@ -43,9 +43,19 @@ La Consola muestra en tiempo real los mensajes del servidor Minecraft (logs) y t
 | Tecla | Acción |
 |-------|--------|
 | `3` | Ir a Consola |
-| `Ctrl+L` | Limpiar la consola |
+| `↑` / `↓` | Navegar historial de comandos (últimos 100) |
 | `Enter` | Enviar comando |
+| `Ctrl+L` | Limpiar la consola |
 | `?` | Abrir esta ayuda |
+
+## Historial de comandos
+
+El historial guarda los últimos **100 comandos** de la sesión actual (se reinicia al cerrar MC Manager).
+
+- Presiona `↑` para retroceder en el historial (comando más reciente → más antiguo)
+- Presiona `↓` para avanzar hacia el más reciente
+- Al llegar al final de la lista con `↓`, el campo se vacía (listo para nuevo comando)
+- Los comandos duplicados consecutivos no se guardan dos veces
 
 ---
 

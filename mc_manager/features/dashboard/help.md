@@ -46,8 +46,20 @@ No, el uptime se lee directamente de Docker (cuándo se inició el contenedor), 
 
 ---
 
+## Indicador de estado en la sidebar
+
+El ítem **Dashboard** en el menú lateral muestra un indicador de color según el estado del servidor:
+- 🟢 Servidor en línea
+- 🔴 Servidor detenido
+- ⏸ Servidor en pausa
+- ⚪ Contenedor sin crear
+
+## Nombre del servidor en el header
+
+Si `datos_mc/server.properties` tiene un `server-name` configurado (distinto del valor por defecto), el header de la app lo mostrará automáticamente al iniciar MC Manager.
+
 ## Consejos
 
 - Usa el atajo `s` para iniciar/detener el servidor rápidamente desde cualquier sección.
-- Si el servidor lleva mucho tiempo online sin jugadores, considera detenerlo para ahorrar RAM (la laptop Asus tiene 8GB compartidos).
+- El panel recuerda la última sección visitada y regresa a ella al reabrirse.
 - Revisa el Dashboard antes de empezar a jugar para asegurarte de que el túnel está activo.

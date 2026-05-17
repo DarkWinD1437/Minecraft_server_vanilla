@@ -1,0 +1,5 @@
+__author__    = "Darwin Vigabriel (DarkWinD)"
+__brand__     = "DarkWinD Software"
+__version__   = "1.0.0"
+__copyright__ = "© 2026 DarkWinD Software"
+__license__   = "MIT"

@@ -30,8 +30,9 @@ Registra y muestra todos los eventos importantes del servidor en una base de dat
 
 ## Atajos de teclado
 
-| Tecla | Acción |
-|-------|--------|
+| Tecla / Acción | Descripción |
+|----------------|-------------|
+| Sidebar → Avanzado → Historial Eventos | Navegar a esta sección |
 | `?` | Abrir esta ayuda |
 
 ---

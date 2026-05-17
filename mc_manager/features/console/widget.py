@@ -87,8 +87,9 @@ class ConsolePane(Widget):
         super().__init__(**kwargs)
         self._auto_scroll = True
         self._paused = False
-        # Nombre que aparece en el chat al usar "say <mensaje>"
         self._console_name: str = "Servidor"
+        self._history: list[str] = []
+        self._history_idx: int = -1
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="console-toolbar"):
@@ -152,12 +153,41 @@ class ConsolePane(Widget):
         if event.input.id == "console-input":
             await self._send_command()
 
+    def on_key(self, event) -> None:
+        try:
+            inp = self.query_one("#console-input", Input)
+            if not inp.has_focus:
+                return
+        except Exception:
+            return
+
+        if event.key == "up":
+            event.prevent_default()
+            if self._history and self._history_idx < len(self._history) - 1:
+                self._history_idx += 1
+                inp.value = self._history[-(self._history_idx + 1)]
+                inp.cursor_position = len(inp.value)
+        elif event.key == "down":
+            event.prevent_default()
+            if self._history_idx > 0:
+                self._history_idx -= 1
+                inp.value = self._history[-(self._history_idx + 1)]
+                inp.cursor_position = len(inp.value)
+            elif self._history_idx == 0:
+                self._history_idx = -1
+                inp.value = ""
+
     async def _send_command(self) -> None:
         try:
             inp = self.query_one("#console-input", Input)
             cmd = inp.value.strip()
             if not cmd:
                 return
+            if not self._history or self._history[-1] != cmd:
+                self._history.append(cmd)
+                if len(self._history) > 100:
+                    self._history.pop(0)
+            self._history_idx = -1
             inp.value = ""
             self._write_line(f"> {cmd}", "INFO")
             self.run_worker(self._exec(cmd), exclusive=False)

@@ -37,8 +37,9 @@ MC Manager incluye 3 reglas predefinidas:
 
 ## Atajos de teclado
 
-| Tecla | Acción |
-|-------|--------|
+| Tecla / Acción | Descripción |
+|----------------|-------------|
+| Sidebar → Avanzado → Alertas | Navegar a esta sección |
 | `?` | Abrir esta ayuda |
 
 ---

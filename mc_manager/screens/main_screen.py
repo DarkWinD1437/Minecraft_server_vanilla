@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from textual.app import ComposeResult
 from textual.screen import Screen
@@ -10,6 +11,7 @@ from textual.widgets import (
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 
+from mc_manager.__about__ import __brand__, __version__
 from mc_manager.core.config import os_info, app_config, docker
 from mc_manager.core.docker_client import ContainerState
 from mc_manager.core.events import (
@@ -18,6 +20,8 @@ from mc_manager.core.events import (
 )
 from mc_manager.features.logs.widget import LogViewerPane
 from mc_manager.screens.help_screen import HelpScreen
+
+_SESSION_FILE = app_config.compose_dir / ".mc_session.json"
 
 
 # Feature registry: (id, label, emoji)
@@ -49,9 +53,18 @@ class NavItem(ListItem):
         self.feature_id = feature_id
         self._label = label
         self._emoji = emoji
+        self._dot = ""
 
     def compose(self) -> ComposeResult:
         yield Label(f" {self._emoji} {self._label}")
+
+    def update_status(self, dot: str = "") -> None:
+        self._dot = dot
+        try:
+            suffix = f"  {dot}" if dot else ""
+            self.query_one(Label).update(f" {self._emoji} {self._label}{suffix}")
+        except Exception:
+            pass
 
 
 class MainScreen(Screen):
@@ -62,19 +75,26 @@ class MainScreen(Screen):
     ]
 
     BINDINGS = [
-        Binding("1", "goto_feature_0", "Dashboard", show=False),
-        Binding("2", "goto_feature_1", "Monitoreo", show=False),
-        Binding("3", "goto_feature_2", "Consola", show=False),
-        Binding("4", "goto_feature_3", "Jugadores", show=False),
-        Binding("5", "goto_feature_4", "Backups", show=False),
-        Binding("6", "goto_feature_5", "Configuración", show=False),
-        Binding("7", "goto_feature_6", "Logs", show=False),
-        Binding("8", "goto_feature_7", "Túnel", show=False),
-        Binding("9", "goto_feature_8", "Programador", show=False),
-        Binding("question_mark", "show_help", "Ayuda", show=True),
-        Binding("s", "toggle_server", "Start/Stop", show=True),
-        Binding("r", "refresh_pane", "Refresh", show=True),
-        Binding("q", "request_quit", "Salir", show=True),
+        Binding("1", "goto_feature_0", "Dashboard",    show=False),
+        Binding("2", "goto_feature_1", "Monitoreo",    show=False),
+        Binding("3", "goto_feature_2", "Consola",      show=False),
+        Binding("4", "goto_feature_3", "Jugadores",    show=False),
+        Binding("5", "goto_feature_4", "Backups",      show=False),
+        Binding("6", "goto_feature_5", "Config",       show=False),
+        Binding("7", "goto_feature_6", "Logs",         show=False),
+        Binding("8", "goto_feature_7", "Túnel",        show=False),
+        Binding("9", "goto_feature_8", "Programador",  show=False),
+        # Avanzado
+        Binding("ctrl+1", "goto_adv_0", "Rendimiento", show=False),
+        Binding("ctrl+2", "goto_adv_1", "Historial",   show=False),
+        Binding("ctrl+3", "goto_adv_2", "Compose",     show=False),
+        Binding("ctrl+4", "goto_adv_3", "Alertas",     show=False),
+        Binding("ctrl+5", "goto_adv_4", "Stats Mundo", show=False),
+        Binding("ctrl+6", "goto_adv_5", "Plugins",     show=False),
+        Binding("question_mark", "show_help",     "Ayuda",     show=True),
+        Binding("s",             "toggle_server", "Start/Stop", show=True),
+        Binding("r",             "refresh_pane",  "Refresh",    show=True),
+        Binding("q",             "request_quit",  "Salir",      show=True),
     ]
 
     def __init__(self) -> None:
@@ -150,6 +170,8 @@ class MainScreen(Screen):
             exclusive=False, name="tunnel-logs"
         )
         self._check_server_state()
+        self._restore_session()
+        self.run_worker(self._load_server_name(), exclusive=False)
 
     def _check_server_state(self) -> None:
         self.run_worker(self._async_check_state(), exclusive=False)
@@ -158,6 +180,40 @@ class MainScreen(Screen):
         state = await asyncio.to_thread(docker.get_container_state, app_config.minecraft_container)
         self._server_state = state
         self.post_message(ContainerStateChanged(state, app_config.minecraft_container))
+
+    # ── Session + server name ────────────────────────────────────────────────
+
+    def _restore_session(self) -> None:
+        try:
+            if _SESSION_FILE.exists():
+                data = json.loads(_SESSION_FILE.read_text(encoding="utf-8"))
+                last = data.get("last_feature", "dashboard")
+                valid_ids = {f[0] for f in FEATURES}
+                if last in valid_ids:
+                    self._switch_to(last)
+        except Exception:
+            pass
+
+    def _save_session(self, feature_id: str) -> None:
+        try:
+            _SESSION_FILE.write_text(
+                json.dumps({"last_feature": feature_id}), encoding="utf-8"
+            )
+        except Exception:
+            pass
+
+    async def _load_server_name(self) -> None:
+        try:
+            props = app_config.server_properties
+            if props.exists():
+                for line in props.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("server-name="):
+                        name = line.split("=", 1)[1].strip()
+                        if name and name != "A Minecraft Server":
+                            self.app.sub_title = f"{name}  —  {__brand__}"
+                        break
+        except Exception:
+            pass
 
     # ── Navigation ──────────────────────────────────────────────────────────
 
@@ -169,6 +225,7 @@ class MainScreen(Screen):
         self._current_feature = feature_id
         switcher = self.query_one(ContentSwitcher)
         switcher.current = feature_id
+        self._save_session(feature_id)
 
     def action_goto_feature_0(self) -> None: self._switch_to("dashboard")
     def action_goto_feature_1(self) -> None: self._switch_to("monitoring")
@@ -179,6 +236,22 @@ class MainScreen(Screen):
     def action_goto_feature_6(self) -> None: self._switch_to("logs")
     def action_goto_feature_7(self) -> None: self._switch_to("tunnel")
     def action_goto_feature_8(self) -> None: self._switch_to("scheduler")
+    # Avanzado
+    def action_goto_adv_0(self) -> None: self._switch_to("performance_tuner")
+    def action_goto_adv_1(self) -> None: self._switch_to("event_log")
+    def action_goto_adv_2(self) -> None: self._switch_to("compose_editor")
+    def action_goto_adv_3(self) -> None: self._switch_to("alerts")
+    def action_goto_adv_4(self) -> None: self._switch_to("world_stats")
+    def action_goto_adv_5(self) -> None: self._switch_to("plugins")
+
+    def _get_nav_item(self, feature_id: str) -> NavItem | None:
+        try:
+            for item in self.query(NavItem):
+                if item.feature_id == feature_id:
+                    return item
+        except Exception:
+            pass
+        return None
 
     def action_show_help(self) -> None:
         self.app.push_screen(HelpScreen(self._current_feature))
@@ -253,12 +326,29 @@ class MainScreen(Screen):
         except Exception:
             pass
 
+    def on_container_state_changed(self, message: ContainerStateChanged) -> None:
+        if message.container != app_config.minecraft_container:
+            return
+        _dots = {
+            ContainerState.RUNNING:     "🟢",
+            ContainerState.STOPPED:     "🔴",
+            ContainerState.PAUSED:      "⏸",
+            ContainerState.NOT_CREATED: "⚪",
+        }
+        dot = _dots.get(message.state, "")
+        nav = self._get_nav_item("dashboard")
+        if nav:
+            nav.update_status(dot)
+
     def on_alert_triggered(self, message: AlertTriggered) -> None:
         self.app.notify(
             f"[{message.severity.upper()}] {message.rule_name}: {message.metric} = {message.value:.1f}",
             severity="warning" if message.severity == "warning" else "error",
             timeout=8,
         )
+        nav = self._get_nav_item("alerts")
+        if nav:
+            nav.update_status("🔔")
 
     def on_content_switcher_changed(self, event: ContentSwitcher.Changed) -> None:
         if event.value == "logs":

@@ -27,6 +27,15 @@ Muestra estadísticas del mundo Minecraft desde el sistema de archivos: tamaño 
 
 ---
 
+## Atajos de teclado
+
+| Tecla / Acción | Descripción |
+|----------------|-------------|
+| Sidebar → Avanzado → Stats del Mundo | Navegar a esta sección |
+| `?` | Abrir esta ayuda |
+
+---
+
 ## Preguntas frecuentes
 
 **¿Por qué la semilla muestra "—"?**

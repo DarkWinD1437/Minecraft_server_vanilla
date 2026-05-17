@@ -35,6 +35,15 @@ Los botones de preset aplican configuraciones optimizadas para diferentes casos 
 
 ---
 
+## Atajos de teclado
+
+| Tecla / Acción | Descripción |
+|----------------|-------------|
+| Sidebar → Avanzado → Rendimiento JVM | Navegar a esta sección |
+| `?` | Abrir esta ayuda |
+
+---
+
 ## Preguntas frecuentes
 
 **¿Qué pasa si pongo más RAM de la que tiene el sistema?**
