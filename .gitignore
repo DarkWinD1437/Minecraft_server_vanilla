@@ -6,4 +6,4 @@ __pycache__/
 *.pyo
 datos_mc/
 logs/events.db
-*.db
+*.db.mc_session.json
