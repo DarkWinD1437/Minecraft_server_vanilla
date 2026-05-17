@@ -278,7 +278,7 @@ class MainScreen(Screen):
     # ── Message handlers (broadcast to features that care) ──────────────────
 
     def on_stats_updated(self, message: StatsUpdated) -> None:
-        # Monitoring pane subscribes directly; pass through
+        message.stop()
         try:
             mon = self.query_one("#monitoring")
             mon.post_message(message)
@@ -291,6 +291,7 @@ class MainScreen(Screen):
             pass
 
     def on_system_stats_updated(self, message: SystemStatsUpdated) -> None:
+        message.stop()
         try:
             mon = self.query_one("#monitoring")
             mon.post_message(message)
@@ -298,6 +299,7 @@ class MainScreen(Screen):
             pass
 
     def on_log_line(self, message: LogLine) -> None:
+        message.stop()
         try:
             console = self.query_one("#console")
             console.post_message(message)
@@ -315,6 +317,7 @@ class MainScreen(Screen):
             pass
 
     def on_tunnel_link_updated(self, message: TunnelLinkUpdated) -> None:
+        message.stop()
         try:
             dash = self.query_one("#dashboard")
             dash.post_message(message)

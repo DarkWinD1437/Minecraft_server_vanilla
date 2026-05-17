@@ -40,7 +40,7 @@ async def run_stats_worker(app: "App") -> None:
                 )
                 pids = int(stats_dict.get("PIDs", 0) or 0)
 
-                app.post_message(StatsUpdated(
+                app.screen.post_message(StatsUpdated(
                     cpu_pct=cpu_pct,
                     ram_used_mb=ram_used_mb,
                     ram_limit_mb=ram_limit_mb,
@@ -51,16 +51,16 @@ async def run_stats_worker(app: "App") -> None:
                     pids=pids,
                 ))
             else:
-                app.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
+                app.screen.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
         except Exception as exc:
             logging.warning("stats_worker docker error: %s", exc)
-            app.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
+            app.screen.post_message(StatsUpdated(0, 0, 0, 0, 0, 0, 0, 0))
 
         # Stats del sistema host — independiente de Docker, siempre se publica
         try:
             cpu = psutil.cpu_percent(interval=None)
             mem = psutil.virtual_memory()
-            app.post_message(SystemStatsUpdated(
+            app.screen.post_message(SystemStatsUpdated(
                 cpu_pct=cpu,
                 ram_pct=mem.percent,
                 ram_used_gb=mem.used / (1024**3),

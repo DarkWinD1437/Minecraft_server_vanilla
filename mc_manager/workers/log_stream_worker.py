@@ -58,7 +58,7 @@ async def run_log_worker(app: "App", container: str) -> None:
                     continue
 
                 level = _extract_level(line)
-                app.post_message(LogLine(source=container, text=line, level=level))
+                app.screen.post_message(LogLine(source=container, text=line, level=level))
 
                 # Extract Playit.gg links from tunnel container
                 if is_tunnel:
@@ -67,8 +67,8 @@ async def run_log_worker(app: "App", container: str) -> None:
                         url = url_match.group(0)
                         if url not in _found_links:
                             _found_links.add(url)
-                            app.post_message(PlayitLinkFound(url=url))
-                            app.post_message(TunnelLinkUpdated(url=url, container_running=True))
+                            app.screen.post_message(PlayitLinkFound(url=url))
+                            app.screen.post_message(TunnelLinkUpdated(url=url, container_running=True))
                     else:
                         # playit-agent v0.17 logs connect_addr: IP:PORT when a client connects
                         addr_match = _PLAYIT_CONNECT_ADDR.search(line)
@@ -76,10 +76,10 @@ async def run_log_worker(app: "App", container: str) -> None:
                             addr = addr_match.group(1)
                             if addr not in _found_links:
                                 _found_links.add(addr)
-                                app.post_message(TunnelLinkUpdated(url=addr, container_running=True))
+                                app.screen.post_message(TunnelLinkUpdated(url=addr, container_running=True))
 
         except FileNotFoundError:
-            app.post_message(LogLine(
+            app.screen.post_message(LogLine(
                 source="manager",
                 text=f"[Log] Docker no encontrado en PATH. ¿Está instalado y corriendo?",
                 level="ERROR",
@@ -87,7 +87,7 @@ async def run_log_worker(app: "App", container: str) -> None:
             await asyncio.sleep(10)
             continue
         except PermissionError:
-            app.post_message(LogLine(
+            app.screen.post_message(LogLine(
                 source="manager",
                 text=f"[Log] Sin permiso para ejecutar Docker. En Linux: sudo usermod -aG docker $USER",
                 level="ERROR",
@@ -95,7 +95,7 @@ async def run_log_worker(app: "App", container: str) -> None:
             await asyncio.sleep(10)
             continue
         except Exception as e:
-            app.post_message(LogLine(
+            app.screen.post_message(LogLine(
                 source="manager",
                 text=f"[Log] Error al leer logs de '{container}': {e}",
                 level="ERROR",
