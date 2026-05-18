@@ -121,6 +121,7 @@ class WorldStatsPane(Widget):
         margin-bottom: 1;
     }
     .world-card {
+        height: auto;
         border: solid $primary-darken-2;
         background: $panel;
         padding: 1;
@@ -137,7 +138,7 @@ class WorldStatsPane(Widget):
         min-width: 18;
     }
     DataTable {
-        height: 10;
+        height: 8;
     }
     .world-info-row {
         layout: horizontal;
@@ -284,6 +285,8 @@ class WorldStatsPane(Widget):
                 )
 
     def on_mount(self) -> None:
+        # Ensure event_store DB is ready, independientemente de si EventLogPane fue visitado
+        event_store.init(app_config.logs_dir / "events.db")
         self._setup_tables()
         self.run_worker(self._load_stats(), exclusive=False)
         self.run_worker(self._check_chunky_version(), exclusive=False)

@@ -109,6 +109,7 @@ class PluginsPane(Widget):
         margin-bottom: 1;
     }
     .plug-card {
+        height: auto;
         border: solid $primary-darken-2;
         background: $panel;
         padding: 1;
