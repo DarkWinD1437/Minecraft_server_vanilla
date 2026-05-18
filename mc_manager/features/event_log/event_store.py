@@ -16,6 +16,13 @@ class EventRecord:
     message: str
 
 
+@dataclass
+class PlayerDeathStat:
+    player: str
+    count: int
+    last_death_at: str
+
+
 _LOCK = threading.Lock()
 _DB_PATH: Path | None = None
 _CONN: sqlite3.Connection | None = None
@@ -37,6 +44,36 @@ def init(db_path: Path) -> None:
     """)
     _CONN.execute("CREATE INDEX IF NOT EXISTS idx_category ON events(category)")
     _CONN.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON events(timestamp)")
+
+    _CONN.execute("""
+        CREATE TABLE IF NOT EXISTS world_epochs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            started_at TEXT NOT NULL,
+            seed TEXT,
+            notes TEXT
+        )
+    """)
+
+    _CONN.execute("""
+        CREATE TABLE IF NOT EXISTS player_deaths (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player TEXT NOT NULL,
+            world_epoch_id INTEGER NOT NULL,
+            count INTEGER DEFAULT 0,
+            last_death_at TEXT,
+            UNIQUE(player, world_epoch_id)
+        )
+    """)
+
+    # Ensure at least one epoch exists (epoch 1 = world from before we started tracking)
+    row = _CONN.execute("SELECT COUNT(*) FROM world_epochs").fetchone()
+    if row[0] == 0:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _CONN.execute(
+            "INSERT INTO world_epochs (started_at, seed, notes) VALUES (?,?,?)",
+            (ts, None, "Época inicial")
+        )
+
     _CONN.commit()
 
 
@@ -76,3 +113,86 @@ def export_csv(out_path: Path, category: str | None = None) -> None:
         msg = r.message.replace('"', '""')
         lines.append(f'{r.id},"{r.timestamp}","{r.category}","{r.severity}","{msg}"')
     out_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+# ── World epochs ──────────────────────────────────────────────────────────────
+
+def create_world_epoch(seed: str | None = None, notes: str | None = None) -> int:
+    """Crea una nueva época de mundo y retorna su id."""
+    if _CONN is None:
+        return 1
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with _LOCK:
+        cur = _CONN.execute(
+            "INSERT INTO world_epochs (started_at, seed, notes) VALUES (?,?,?)",
+            (ts, seed, notes)
+        )
+        _CONN.commit()
+        return cur.lastrowid or 1
+
+
+def get_current_epoch() -> int:
+    """Retorna el id de la época más reciente."""
+    if _CONN is None:
+        return 1
+    with _LOCK:
+        row = _CONN.execute(
+            "SELECT id FROM world_epochs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    return row[0] if row else 1
+
+
+# ── Player deaths ─────────────────────────────────────────────────────────────
+
+def record_death(player: str, epoch_id: int) -> None:
+    """Incrementa el contador de muertes del jugador en la época dada."""
+    if _CONN is None:
+        return
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with _LOCK:
+        _CONN.execute(
+            """
+            INSERT INTO player_deaths (player, world_epoch_id, count, last_death_at)
+            VALUES (?, ?, 1, ?)
+            ON CONFLICT(player, world_epoch_id) DO UPDATE SET
+                count = count + 1,
+                last_death_at = excluded.last_death_at
+            """,
+            (player, epoch_id, ts),
+        )
+        _CONN.commit()
+
+
+def query_player_deaths(epoch_id: int) -> list[PlayerDeathStat]:
+    """Retorna stats de muertes por jugador para la época indicada, ordenado por count desc."""
+    if _CONN is None:
+        return []
+    with _LOCK:
+        rows = _CONN.execute(
+            """
+            SELECT player, count, last_death_at
+            FROM player_deaths
+            WHERE world_epoch_id = ?
+            ORDER BY count DESC
+            """,
+            (epoch_id,),
+        ).fetchall()
+    return [PlayerDeathStat(player=r[0], count=r[1], last_death_at=r[2] or "—") for r in rows]
+
+
+# ── EssentialsX balance (opcional) ───────────────────────────────────────────
+
+def read_essentialsx_balance(uuid: str, data_dir: Path) -> float | None:
+    """Lee el saldo de EssentialsX del YAML de userdata si existe."""
+    userdata = data_dir / "plugins" / "Essentials" / "userdata" / f"{uuid}.yml"
+    if not userdata.exists():
+        return None
+    try:
+        for line in userdata.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("money:"):
+                val = stripped.split(":", 1)[1].strip()
+                return float(val)
+    except Exception:
+        pass
+    return None

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import urllib.request
 from pathlib import Path
@@ -13,6 +14,32 @@ from textual.containers import Center, Vertical
 from mc_manager.__about__ import __brand__, __copyright__
 from mc_manager.core.config import docker, app_config, os_info
 from mc_manager.core.docker_client import ContainerState
+
+_COMPOSE_HASH_FILE = app_config.compose_dir / ".mc_compose_hash"
+
+
+def _get_compose_hash() -> str:
+    """Calcula el hash MD5 del docker-compose.yml actual."""
+    compose_file = app_config.compose_dir / "docker-compose.yml"
+    if not compose_file.exists():
+        return ""
+    return hashlib.md5(compose_file.read_bytes()).hexdigest()
+
+
+def _compose_has_changed() -> bool:
+    """Retorna True si docker-compose.yml cambió desde el último inicio."""
+    current = _get_compose_hash()
+    if not current:
+        return False
+    if _COMPOSE_HASH_FILE.exists():
+        stored = _COMPOSE_HASH_FILE.read_text(encoding="utf-8").strip()
+        if stored != current:
+            _COMPOSE_HASH_FILE.write_text(current, encoding="utf-8")
+            return True
+        return False
+    # Primera vez: solo guardar, no reiniciar
+    _COMPOSE_HASH_FILE.write_text(current, encoding="utf-8")
+    return False
 
 
 class StartupScreen(ModalScreen):
@@ -87,6 +114,19 @@ class StartupScreen(ModalScreen):
         btn_continue = self.query_one("#btn-continue", Button)
 
         if state == ContainerState.RUNNING:
+            # Detectar si docker-compose.yml cambió y necesita recrear contenedores
+            if _compose_has_changed():
+                status_label.update("🔄  ACTUALIZANDO CONFIGURACIÓN")
+                desc_label.update(
+                    "Se detectó una actualización de configuración del servidor.\n"
+                    "Los contenedores se reiniciarán automáticamente.\n\n"
+                    "No perderás ningún dato del mundo ni de los jugadores\n"
+                    "— es solo una actualización base del sistema."
+                )
+                await asyncio.to_thread(docker.stop)
+                await asyncio.to_thread(docker.start)
+                state = docker.get_container_state(app_config.minecraft_container)
+
             status_label.update("🟢  SERVIDOR EN LÍNEA")
             status_label.add_class("status-running")
             desc_label.update("El servidor Minecraft ya está corriendo.\nPuedes gestionar todo desde el dashboard.")

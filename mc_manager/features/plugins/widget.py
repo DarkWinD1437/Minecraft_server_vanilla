@@ -100,7 +100,7 @@ class PluginsPane(Widget):
     }
     #plug-scroll {
         width: 100%;
-        height: 100%;
+        height: 1fr;
         padding: 1 2;
     }
     .plug-title {
@@ -125,6 +125,7 @@ class PluginsPane(Widget):
     }
     .plug-btn-row Button {
         margin-right: 1;
+        min-width: 16;
     }
     .plug-warn {
         color: $warning;
@@ -136,10 +137,12 @@ class PluginsPane(Widget):
     }
     .rec-row {
         layout: horizontal;
-        height: 5;
+        height: auto;
+        min-height: 5;
         align: left middle;
         margin-bottom: 1;
         border-bottom: dashed $primary-darken-3;
+        padding: 1 0;
     }
     .rec-info {
         width: 1fr;
@@ -156,7 +159,6 @@ class PluginsPane(Widget):
     }
     .rec-install-btn {
         width: 14;
-        align: right middle;
     }
     .url-install-row {
         layout: horizontal;
@@ -254,13 +256,13 @@ class PluginsPane(Widget):
 
         for jar in active:
             self._plugins.append(jar)
-            table.add_row(jar.stem, "✅ Activo")
+            table.add_row(jar.stem, "[green]● Activo[/]")
 
         for jar in inactive:
             self._plugins.append(jar)
             stem = jar.name[: -len(".disabled")]
             stem = stem[: -len(".jar")]
-            table.add_row(stem, "❌ Inactivo")
+            table.add_row(stem, "[red]○ Inactivo[/]")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
@@ -301,11 +303,11 @@ class PluginsPane(Widget):
             if enable:
                 new_path = jar.parent / jar.name[: -len(".disabled")]
                 jar.rename(new_path)
-                self.app.notify(f"✅ {new_path.stem} activado.", severity="information")
+                self.app.notify(f"Activado: {new_path.stem}", severity="information")
             else:
                 new_path = jar.with_name(jar.name + ".disabled")
                 jar.rename(new_path)
-                self.app.notify(f"❌ {jar.stem} desactivado.", severity="warning")
+                self.app.notify(f"Desactivado: {jar.stem}", severity="warning")
         except Exception as e:
             self.app.notify(f"Error: {e}", severity="error")
 

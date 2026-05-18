@@ -127,6 +127,12 @@ class EventLogPane(Widget):
             event_store.insert("Jugadores", "info", f"{m.group(1)} se desconectó")
         elif _DEATH_RE.search(text) and message.level != "DEBUG":
             event_store.insert("Jugadores", "info", text[:120])
+            # Record structured death stat
+            m = _DEATH_RE.search(text)
+            if m:
+                player = m.group(1)
+                epoch = event_store.get_current_epoch()
+                event_store.record_death(player, epoch)
         elif _CRASH_RE.search(text) and message.level in ("ERROR", "FATAL"):
             event_store.insert("Errores", "critical", text[:120])
         elif message.level in ("ERROR", "FATAL"):
