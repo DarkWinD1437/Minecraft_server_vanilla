@@ -138,12 +138,10 @@ class PluginsPane(Widget):
     }
     .rec-row {
         layout: horizontal;
-        height: auto;
-        min-height: 5;
+        height: 5;
         align: left middle;
         margin-bottom: 1;
         border-bottom: dashed $primary-darken-3;
-        padding: 1 0;
     }
     .rec-info {
         width: 1fr;
