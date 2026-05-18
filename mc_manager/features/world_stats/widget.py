@@ -81,25 +81,31 @@ def _get_installed_chunky_version() -> str | None:
 
 
 def _fetch_latest_chunky_version() -> str:
-    """(bloqueante) Consulta GitHub API para la versión más reciente de Chunky."""
-    url = "https://api.github.com/repos/pop4959/Chunky/releases/latest"
+    """(bloqueante) Consulta Modrinth API para la versión más reciente de Chunky (Paper)."""
+    import urllib.parse
+    loaders = urllib.parse.quote('["paper","bukkit","spigot"]')
+    url = f"https://api.modrinth.com/v2/project/fALzjamp/version?loaders={loaders}"
     req = urllib.request.Request(url, headers={"User-Agent": "MC-Manager/1.0"})
     with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read())
-    return data.get("tag_name", "").lstrip("v")
+        versions = json.loads(resp.read())
+    if versions:
+        return versions[0].get("version_number", "")
+    return ""
 
 
 def _fetch_chunky_download_url() -> tuple[str, str]:
-    """(bloqueante) Retorna (download_url, filename) del JAR de Chunky del último release."""
-    url = "https://api.github.com/repos/pop4959/Chunky/releases/latest"
+    """(bloqueante) Retorna (download_url, filename) del JAR de Chunky desde Modrinth."""
+    import urllib.parse
+    loaders = urllib.parse.quote('["paper","bukkit","spigot"]')
+    url = f"https://api.modrinth.com/v2/project/fALzjamp/version?loaders={loaders}"
     req = urllib.request.Request(url, headers={"User-Agent": "MC-Manager/1.0"})
     with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read())
-    for asset in data.get("assets", []):
-        name: str = asset["name"]
-        if "chunky" in name.lower() and name.endswith(".jar"):
-            return asset["browser_download_url"], name
-    raise ValueError("No se encontró JAR de Chunky en el release")
+        versions = json.loads(resp.read())
+    if versions:
+        for f in versions[0].get("files", []):
+            if f["filename"].endswith(".jar"):
+                return f["url"], f["filename"]
+    raise ValueError("No se encontró JAR de Chunky en Modrinth")
 
 
 class WorldStatsPane(Widget):
@@ -291,6 +297,7 @@ class WorldStatsPane(Widget):
         self.run_worker(self._load_stats(), exclusive=False)
         self.run_worker(self._check_chunky_version(), exclusive=False)
         self._load_deaths()
+        self.set_interval(30.0, self._load_deaths)
 
     def _setup_tables(self) -> None:
         try:

@@ -16,7 +16,11 @@ from mc_manager.features.event_log import event_store
 
 _JOIN_RE = re.compile(r"(\w+) joined the game")
 _LEAVE_RE = re.compile(r"(\w+) left the game")
-_DEATH_RE = re.compile(r"(\w+) (was|fell|drowned|burned|suffocated|starved)", re.IGNORECASE)
+_DEATH_RE = re.compile(
+    r"(\w+) (?:was |fell |drowned|burned|suffocated|starved|tried |hit |blew |died"
+    r"|withered|went up|walked into|experienced |froze)",
+    re.IGNORECASE,
+)
 _CRASH_RE = re.compile(r"(exception|crash|fatal error|stopping server)", re.IGNORECASE)
 
 

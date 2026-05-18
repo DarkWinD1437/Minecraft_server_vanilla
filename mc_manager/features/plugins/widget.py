@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -50,17 +51,24 @@ _RECOMMENDED = [
         "name": "Coordinates HUD",
         "desc": "Coordenadas visibles en pantalla para todos por igual",
         "url_info": "hangar.papermc.io",
+        "source": "hangar",
+        "slug": "CoordinatesHUD",
+    },
+    {
+        "name": "SkinsRestorer",
+        "desc": "Skins reales en modo offline — premium auto, cracked con /skin set",
+        "url_info": "modrinth.com/plugin/skinsrestorer",
         "source": "modrinth",
-        "project_id": "coordinateshud",
-        "pattern": ".jar",
+        "project_id": "TsLS8Py5",
+        "loaders": ["paper", "bukkit", "spigot"],
     },
     {
         "name": "Chunky",
         "desc": "Pre-genera chunks del mundo — instala antes del primer arranque",
-        "url_info": "github.com/pop4959/Chunky",
-        "source": "github",
-        "repo": "pop4959/Chunky",
-        "pattern": "Chunky",
+        "url_info": "modrinth.com/plugin/chunky",
+        "source": "modrinth",
+        "project_id": "fALzjamp",
+        "loaders": ["paper", "bukkit", "spigot"],
     },
     {
         "name": "CoreProtect",
@@ -334,9 +342,13 @@ class PluginsPane(Widget):
                 return asset["browser_download_url"], name
         raise ValueError(f"No se encontro JAR con patron '{pattern}' en {repo}")
 
-    def _fetch_modrinth_jar(self, project_id: str) -> tuple[str, str]:
-        """(bloqueante) Retorna (download_url, filename) de Modrinth."""
-        url = f"https://api.modrinth.com/v2/project/{project_id}/version"
+    def _fetch_modrinth_jar(self, project_id: str, loaders: list[str] | None = None) -> tuple[str, str]:
+        """(bloqueante) Retorna (download_url, filename) de Modrinth filtrando por loader Paper."""
+        params = {}
+        if loaders:
+            params["loaders"] = json.dumps(loaders)
+        qs = ("?" + urllib.parse.urlencode(params)) if params else ""
+        url = f"https://api.modrinth.com/v2/project/{project_id}/version{qs}"
         req = urllib.request.Request(url, headers={"User-Agent": "MC-Manager/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             versions = json.loads(resp.read())
@@ -345,7 +357,22 @@ class PluginsPane(Widget):
             if files:
                 primary = next((f for f in files if f.get("primary")), files[0])
                 return primary["url"], primary["filename"]
-        raise ValueError(f"No se encontro JAR para '{project_id}' en Modrinth")
+        raise ValueError(f"No se encontro JAR para '{project_id}' en Modrinth (loader: {loaders})")
+
+    def _fetch_hangar_jar(self, slug: str) -> tuple[str, str]:
+        """(bloqueante) Retorna (download_url, filename) del plugin en Hangar (Paper hub)."""
+        ver_url = f"https://hangar.papermc.io/api/v1/projects/{slug}/latestrelease"
+        req = urllib.request.Request(ver_url, headers={"User-Agent": "MC-Manager/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            version = resp.read().decode().strip().strip('"')
+        if not version:
+            raise ValueError(f"No se encontró versión para '{slug}' en Hangar")
+        dl_url = (
+            f"https://hangar.papermc.io/api/v1/projects/{slug}"
+            f"/versions/{urllib.parse.quote(version, safe='')}/PAPER/download"
+        )
+        filename = f"{slug}-{version}.jar"
+        return dl_url, filename
 
     def _download_jar(self, dl_url: str, dest: Path) -> None:
         """(bloqueante) Descarga el JAR a dest."""
@@ -364,9 +391,15 @@ class PluginsPane(Widget):
                 dl_url, filename = await asyncio.to_thread(
                     self._fetch_github_jar, plugin["repo"], plugin["pattern"]
                 )
+            elif plugin["source"] == "hangar":
+                dl_url, filename = await asyncio.to_thread(
+                    self._fetch_hangar_jar, plugin["slug"]
+                )
             else:
                 dl_url, filename = await asyncio.to_thread(
-                    self._fetch_modrinth_jar, plugin["project_id"]
+                    self._fetch_modrinth_jar,
+                    plugin["project_id"],
+                    plugin.get("loaders", ["paper", "bukkit", "spigot"]),
                 )
 
             dest = plugins_dir / filename

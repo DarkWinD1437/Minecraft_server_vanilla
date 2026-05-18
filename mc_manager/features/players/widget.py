@@ -149,6 +149,7 @@ class PlayersPane(Widget):
     def on_mount(self) -> None:
         self._setup_tables()
         self.run_worker(self._load_all(), exclusive=False)
+        self.set_interval(15.0, lambda: self.run_worker(self._load_online(), exclusive=False))
 
     def _setup_tables(self) -> None:
         try:
