@@ -67,6 +67,69 @@ def _open_folder(path: Path) -> None:
         subprocess.run(["xdg-open", str(path)], check=False)
 
 
+def _update_world_name_in_compose(new_name: str) -> None:
+    """Actualiza la variable LEVEL en docker-compose.yml."""
+    import re
+    compose_path = app_config.compose_dir / "docker-compose.yml"
+    if not compose_path.exists():
+        return
+    content = compose_path.read_text(encoding="utf-8")
+    new_content = re.sub(
+        r'(^\s*LEVEL:\s*)(\"[^\"]*\"|\'[^\']*\'|[^\n\"\']+)',
+        lambda m: f'{m.group(1)}"{new_name}"',
+        content,
+        flags=re.MULTILINE,
+    )
+    compose_path.write_text(new_content, encoding="utf-8")
+
+
+def _update_world_name_in_properties(new_name: str) -> None:
+    """Actualiza level-name (y level.name si existe) en server.properties."""
+    from mc_manager.features.settings.properties_parser import read_properties, write_properties
+    props = read_properties(app_config.server_properties)
+    props["level-name"] = new_name
+    if "level.name" in props:
+        props["level.name"] = new_name
+    write_properties(app_config.server_properties, props)
+
+
+def _rename_world_dirs(old_name: str, new_name: str) -> list[str]:
+    """Renombra los directorios del mundo. Retorna lista de mensajes de error."""
+    errors: list[str] = []
+    data_dir = app_config.data_dir
+    for suffix in ["", "_nether", "_the_end"]:
+        old_dir = data_dir / f"{old_name}{suffix}"
+        new_dir = data_dir / f"{new_name}{suffix}"
+        if not old_dir.exists():
+            continue
+        if new_dir.exists():
+            errors.append(f"Ya existe el directorio '{new_dir.name}'. Renómbralo primero.")
+        else:
+            try:
+                old_dir.rename(new_dir)
+            except Exception as e:
+                errors.append(f"Error renombrando '{old_dir.name}': {e}")
+    return errors
+
+
+def _find_all_world_root_dirs(data_dir: Path) -> list[Path]:
+    """Retorna todos los directorios que parecen ser raíces de mundos Minecraft."""
+    result: list[Path] = []
+    if not data_dir.exists():
+        return result
+    for d in data_dir.iterdir():
+        if not d.is_dir():
+            continue
+        name = d.name
+        if name.endswith(("_nether", "_the_end")):
+            continue
+        nether = data_dir / f"{name}_nether"
+        end_dir = data_dir / f"{name}_the_end"
+        if (d / "level.dat").exists() or nether.exists() or end_dir.exists():
+            result.append(d)
+    return result
+
+
 def _get_installed_chunky_version() -> str | None:
     """Extrae la versión del JAR de Chunky instalado en plugins/."""
     plugins_dir = app_config.data_dir / "plugins"
@@ -420,21 +483,8 @@ class WorldStatsPane(Widget):
         else:
             self.app.notify("Servidor reiniciado correctamente.", severity="information")
 
-    async def _do_new_world(self) -> None:
+    async def _do_new_world(self, new_name: str) -> None:
         data_dir = app_config.data_dir
-        world_name = "world"
-        try:
-            from mc_manager.features.settings.properties_parser import read_properties
-            props = read_properties(app_config.server_properties)
-            world_name = props.get("level-name", "world")
-        except Exception:
-            pass
-
-        world_dirs = [
-            data_dir / world_name,
-            data_dir / f"{world_name}_nether",
-            data_dir / f"{world_name}_the_end",
-        ]
 
         self.app.notify("Creando backup antes de eliminar el mundo...", severity="warning", timeout=8)
 
@@ -454,22 +504,32 @@ class WorldStatsPane(Widget):
         self.app.notify("Deteniendo servidor...", severity="warning", timeout=5)
         await asyncio.to_thread(docker.stop, app_config.minecraft_container)
 
-        # 3. Delete world directories
-        for d in world_dirs:
-            if d.exists():
-                try:
-                    await asyncio.to_thread(shutil.rmtree, str(d))
-                except Exception as e:
-                    self.app.notify(f"Error eliminando {d.name}: {e}", severity="error")
+        # 3. Delete ALL world dirs (incluye huérfanos de ejecuciones anteriores)
+        all_world_roots = await asyncio.to_thread(_find_all_world_root_dirs, data_dir)
+        for world_root in all_world_roots:
+            for suffix in ["", "_nether", "_the_end"]:
+                d = data_dir / f"{world_root.name}{suffix}"
+                if d.exists():
+                    try:
+                        await asyncio.to_thread(shutil.rmtree, str(d))
+                    except Exception as e:
+                        self.app.notify(f"Error eliminando {d.name}: {e}", severity="error")
 
-        # 4. Start server (Paper regenera el mundo automáticamente)
-        self.app.notify("Iniciando servidor con mundo nuevo...", severity="information", timeout=8)
+        # 4. Actualizar nombre en docker-compose y server.properties
+        try:
+            await asyncio.to_thread(_update_world_name_in_compose, new_name)
+            await asyncio.to_thread(_update_world_name_in_properties, new_name)
+        except Exception as e:
+            self.app.notify(f"Error actualizando configuración: {e}", severity="warning")
+
+        # 5. Start server (Paper regenera el mundo automáticamente)
+        self.app.notify(f'Iniciando servidor con mundo nuevo "{new_name}"...', severity="information", timeout=8)
         await asyncio.to_thread(docker.start)
 
-        # 5. Registrar nueva época
-        epoch_id = event_store.create_world_epoch(seed=None, notes="Mundo regenerado manualmente")
+        # 6. Registrar nueva época
+        epoch_id = event_store.create_world_epoch(seed=None, notes=f'Mundo regenerado: "{new_name}"')
         self.app.notify(
-            f"Nuevo mundo creado (época #{epoch_id}). Backup guardado.",
+            f'Nuevo mundo "{new_name}" creado (época #{epoch_id}). Backup guardado.',
             severity="information",
             timeout=10,
         )
@@ -564,24 +624,40 @@ class WorldStatsPane(Widget):
             )
 
         elif bid == "world-new-world":
-            from mc_manager.screens.confirm_modal import ConfirmModal
-            def _on_new_world(confirmed: bool) -> None:
-                if confirmed:
-                    self.run_worker(self._do_new_world(), exclusive=True)
-            self.app.push_screen(
-                ConfirmModal(
-                    title="🌱  Generar Nuevo Mundo",
-                    body=(
-                        "Se creará un backup automático del mundo actual.\n"
-                        "Luego se eliminarán los directorios del mundo\n"
-                        "(overworld, nether, end) y los inventarios de jugadores.\n\n"
-                        "Todos comenzarán desde cero con el nuevo mapa.\n"
-                        "Esta acción NO se puede deshacer (excepto por el backup)."
+            from mc_manager.screens.world_name_modal import WorldNameModal
+            from mc_manager.features.settings.properties_parser import read_properties
+            current_name = "world"
+            try:
+                props = read_properties(app_config.server_properties)
+                current_name = props.get("level-name", "world")
+            except Exception:
+                pass
+
+            def _on_name_chosen(new_name: str | None) -> None:
+                if not new_name:
+                    return
+                from mc_manager.screens.confirm_modal import ConfirmModal
+                def _on_confirm(confirmed: bool) -> None:
+                    if confirmed:
+                        self.run_worker(self._do_new_world(new_name), exclusive=True)
+                self.app.push_screen(
+                    ConfirmModal(
+                        title="🌱  Generar Nuevo Mundo",
+                        body=(
+                            f'Se creará el mundo "{new_name}" desde cero.\n\n'
+                            "Se eliminan TODOS los mundos existentes (incluidos\n"
+                            "los no activos). Se crea backup automático antes.\n\n"
+                            "Los inventarios de jugadores también se reiniciarán.\n"
+                            "Esta acción NO se puede deshacer (excepto por backup)."
+                        ),
+                        confirm_label="Crear Nuevo Mundo",
+                        danger=True,
                     ),
-                    confirm_label="Crear Nuevo Mundo",
-                    danger=True,
-                ),
-                _on_new_world,
+                    _on_confirm,
+                )
+            self.app.push_screen(
+                WorldNameModal(current_name=current_name, action_label="Crear Nuevo Mundo"),
+                _on_name_chosen,
             )
 
         # Chunky radius presets

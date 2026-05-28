@@ -68,6 +68,10 @@ class DashboardPane(Widget):
     #tunnel-card {
         height: 14;
     }
+    #world-card {
+        column-span: 2;
+        height: 7;
+    }
     #dash-status-label {
         text-align: center;
         text-style: bold;
@@ -101,6 +105,29 @@ class DashboardPane(Widget):
     .mini-spark-row {
         layout: horizontal;
         height: 8;
+    }
+    .world-name-row {
+        layout: horizontal;
+        height: 2;
+        align: left middle;
+        margin-bottom: 1;
+    }
+    .world-name-label {
+        width: 18;
+        color: $text-muted;
+    }
+    #dash-world-name {
+        color: $accent;
+        text-style: bold;
+    }
+    .dash-world-btn-row {
+        layout: horizontal;
+        height: 3;
+        align: left middle;
+    }
+    .dash-world-btn-row Button {
+        margin-right: 1;
+        min-width: 16;
     }
     """
 
@@ -142,11 +169,31 @@ class DashboardPane(Widget):
             with Horizontal(classes="dash-btn-row"):
                 yield Button("🔄 Recargar Link", id="dash-btn-reload-link", variant="default")
 
+        # Card 5: World (spans both columns)
+        with Vertical(classes="dash-card", id="world-card"):
+            yield Label("🌍  Mundo Activo", classes="dash-card-title")
+            with Horizontal(classes="world-name-row"):
+                yield Label("Nombre actual:", classes="world-name-label")
+                yield Label("—", id="dash-world-name")
+            with Horizontal(classes="dash-world-btn-row"):
+                yield Button("✏️ Renombrar Mundo", id="dash-btn-rename-world", variant="default")
+                yield Button("🌱 Nuevo Mundo", id="dash-btn-new-world", variant="error")
+
     def on_mount(self) -> None:
         self.run_worker(self._refresh_state(), exclusive=False)
         self.set_interval(30.0, lambda: self.run_worker(self._refresh_state()))
         self.set_interval(1.0, self._tick_uptime)
         self._start_ts: datetime | None = None
+        self._load_world_name()
+
+    def _load_world_name(self) -> None:
+        try:
+            from mc_manager.features.settings.properties_parser import read_properties
+            props = read_properties(app_config.server_properties)
+            name = props.get("level-name", "world")
+            self.query_one("#dash-world-name", Label).update(name)
+        except Exception:
+            pass
 
     async def _refresh_state(self) -> None:
         state = await asyncio.to_thread(docker.get_container_state, app_config.minecraft_container)
@@ -250,6 +297,79 @@ class DashboardPane(Widget):
         elif bid == "dash-btn-reload-link":
             self.run_worker(self._reload_tunnel_link(), exclusive=False)
 
+        elif bid == "dash-btn-rename-world":
+            from mc_manager.screens.world_name_modal import WorldNameModal
+            from mc_manager.features.settings.properties_parser import read_properties
+            current_name = "world"
+            try:
+                props = read_properties(app_config.server_properties)
+                current_name = props.get("level-name", "world")
+            except Exception:
+                pass
+
+            def _on_rename(new_name: str | None) -> None:
+                if not new_name or new_name == current_name:
+                    return
+                from mc_manager.screens.confirm_modal import ConfirmModal
+                def _on_confirm(confirmed: bool) -> None:
+                    if confirmed:
+                        self.run_worker(self._do_rename_world(current_name, new_name), exclusive=True)
+                self.app.push_screen(
+                    ConfirmModal(
+                        title="✏️  Renombrar Mundo",
+                        body=(
+                            f'Renombrar de "{current_name}" a "{new_name}".\n\n'
+                            "Se detendrá el servidor, se renombrarán los\n"
+                            "directorios del mundo y se actualizará la\n"
+                            "configuración. Luego se reiniciará."
+                        ),
+                        confirm_label="Renombrar",
+                        danger=False,
+                    ),
+                    _on_confirm,
+                )
+            self.app.push_screen(
+                WorldNameModal(current_name=current_name, action_label="Renombrar"),
+                _on_rename,
+            )
+
+        elif bid == "dash-btn-new-world":
+            from mc_manager.screens.world_name_modal import WorldNameModal
+            from mc_manager.features.settings.properties_parser import read_properties
+            current_name = "world"
+            try:
+                props = read_properties(app_config.server_properties)
+                current_name = props.get("level-name", "world")
+            except Exception:
+                pass
+
+            def _on_new_name(new_name: str | None) -> None:
+                if not new_name:
+                    return
+                from mc_manager.screens.confirm_modal import ConfirmModal
+                def _on_confirm(confirmed: bool) -> None:
+                    if confirmed:
+                        self.run_worker(self._do_new_world(new_name), exclusive=True)
+                self.app.push_screen(
+                    ConfirmModal(
+                        title="🌱  Generar Nuevo Mundo",
+                        body=(
+                            f'Se creará el mundo "{new_name}" desde cero.\n\n'
+                            "Se eliminan TODOS los mundos existentes (incluidos\n"
+                            "los no activos). Se crea backup automático antes.\n\n"
+                            "Los inventarios de jugadores también se reiniciarán.\n"
+                            "Esta acción NO se puede deshacer (excepto por backup)."
+                        ),
+                        confirm_label="Crear Nuevo Mundo",
+                        danger=True,
+                    ),
+                    _on_confirm,
+                )
+            self.app.push_screen(
+                WorldNameModal(current_name=current_name, action_label="Crear Nuevo Mundo"),
+                _on_new_name,
+            )
+
     async def _do_start(self) -> None:
         out, err = await asyncio.to_thread(docker.start)
         if err and not out:
@@ -274,6 +394,88 @@ class DashboardPane(Widget):
         else:
             self.app.notify("Servidor reiniciado", severity="information")
         await self._refresh_state()
+
+    async def _do_rename_world(self, old_name: str, new_name: str) -> None:
+        from mc_manager.features.world_stats.widget import (
+            _rename_world_dirs, _update_world_name_in_compose, _update_world_name_in_properties,
+        )
+        was_running = self._current_state == ContainerState.RUNNING
+        if was_running:
+            self.app.notify("Deteniendo servidor para renombrar...", severity="warning", timeout=5)
+            await asyncio.to_thread(docker.stop, app_config.minecraft_container)
+
+        errors = await asyncio.to_thread(_rename_world_dirs, old_name, new_name)
+        for err in errors:
+            self.app.notify(err, severity="error")
+
+        await asyncio.to_thread(_update_world_name_in_compose, new_name)
+        await asyncio.to_thread(_update_world_name_in_properties, new_name)
+
+        try:
+            self.query_one("#dash-world-name", Label).update(new_name)
+        except Exception:
+            pass
+
+        if was_running:
+            self.app.notify("Reiniciando servidor...", severity="information", timeout=5)
+            await asyncio.to_thread(docker.start)
+            await self._refresh_state()
+
+        self.app.notify(f'Mundo renombrado a "{new_name}".', severity="information", timeout=8)
+
+    async def _do_new_world(self, new_name: str) -> None:
+        import shutil
+        from mc_manager.features.world_stats.widget import (
+            _find_all_world_root_dirs, _update_world_name_in_compose, _update_world_name_in_properties,
+        )
+        from mc_manager.features.event_log import event_store
+        data_dir = app_config.data_dir
+
+        self.app.notify("Creando backup antes de eliminar el mundo...", severity="warning", timeout=8)
+        try:
+            from mc_manager.features.backups.backup_engine import create_backup
+            backup_dir = app_config.compose_dir / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(create_backup, data_dir, backup_dir, "pre-nuevo-mundo", True)
+        except Exception as e:
+            self.app.notify(f"Backup falló: {e}. Abortando.", severity="error")
+            return
+
+        self.app.notify("Deteniendo servidor...", severity="warning", timeout=5)
+        await asyncio.to_thread(docker.stop, app_config.minecraft_container)
+
+        all_world_roots = await asyncio.to_thread(_find_all_world_root_dirs, data_dir)
+        for world_root in all_world_roots:
+            for suffix in ["", "_nether", "_the_end"]:
+                d = data_dir / f"{world_root.name}{suffix}"
+                if d.exists():
+                    try:
+                        await asyncio.to_thread(shutil.rmtree, str(d))
+                    except Exception as e:
+                        self.app.notify(f"Error eliminando {d.name}: {e}", severity="error")
+
+        try:
+            await asyncio.to_thread(_update_world_name_in_compose, new_name)
+            await asyncio.to_thread(_update_world_name_in_properties, new_name)
+        except Exception as e:
+            self.app.notify(f"Error actualizando configuración: {e}", severity="warning")
+
+        try:
+            self.query_one("#dash-world-name", Label).update(new_name)
+        except Exception:
+            pass
+
+        self.app.notify(f'Iniciando servidor con mundo "{new_name}"...', severity="information", timeout=8)
+        await asyncio.to_thread(docker.start)
+        await self._refresh_state()
+
+        event_store.init(app_config.logs_dir / "events.db")
+        epoch_id = event_store.create_world_epoch(seed=None, notes=f'Mundo regenerado: "{new_name}"')
+        self.app.notify(
+            f'Mundo "{new_name}" creado (época #{epoch_id}). Backup guardado.',
+            severity="information",
+            timeout=10,
+        )
 
     async def _reload_tunnel_link(self) -> None:
         logs, _ = docker.get_logs(app_config.tunnel_container, tail=100)
